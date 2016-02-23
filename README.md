@@ -4,7 +4,7 @@ TODO List
 
 MapType :
 - Allow goals
-- Delete "Rules" if not needed.
+
 - add interface to edit the type of cp (illimited rocket, no rocket).
 
 Mode :
