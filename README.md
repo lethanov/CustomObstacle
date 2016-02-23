@@ -9,3 +9,4 @@ MapType :
 Mode :
 - Make a new ScriptTable to display the ranking.
 - increase the sound when the player makes a best time on the CP.
+- add special sond if players make better time on the goal.
