@@ -1,0 +1,216 @@
+#RequireContext CSmMapType
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
+#Include "Libs/Nadeo/MapType.Script.txt" as MapType
+
+declare Text Rules;
+
+Void InitAnchors() {
+	declare Order = 1;
+	foreach(Anchor, AnchorData) {
+		if(Anchor.DefaultTag == "Spawn"){
+			Anchor.Tag = Anchor.DefaultTag;
+			Anchor.Order = 0;
+		} else if(Anchor.DefaultTag == "Checkpoint"){
+			Anchor.Tag = Anchor.DefaultTag;
+			Anchor.Order = Order;
+			Order += 1;
+		} else {
+			Anchor.Tag = "IGNORE";
+			Anchor.Order = 0;
+		}
+	}
+}
+
+// ---------------------------------- //
+// Check if the map is valid
+Void UpdateValidability() {
+	log("lol");
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;
+
+	Anchor::UpdateAnchorCounts(); 
+
+	if (!Anchor::HasExactlyOneAnchor("Spawn", 0, _("You must place exactly one Spawn."))){
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+	}
+	if (!Anchor::HasAtLeastOneAnchor("Checkpoint", 1, _("You must place at least one Checkpoint."))){
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+	}
+	
+	// Check checkpoint order
+	declare CheckpointOrders = Integer[Integer];
+	declare CheckpointCount = 0;
+	foreach (Anchor in AnchorData) {
+		if (Anchor.Tag == "Checkpoint") {
+			CheckpointCount += 1;
+			if (Anchor.Order <= 0) {
+				ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+				ValidabilityRequirementsMessage = _("At least one Checkpoint is wrong");
+				return;
+			}
+			if (!CheckpointOrders.existskey(Anchor.Order)) {
+				CheckpointOrders[Anchor.Order] = 1;
+			} else {
+				CheckpointOrders[Anchor.Order] += 1;
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+// Return the manialink for anchor edition
+Void EditAnchorManialink(CAnchorData _Anchor) {
+	declare Boolean Finish for ManialinkPage;
+	declare Text AnchorOrder for ManialinkPage;
+	
+	AnchorOrder = TextLib::ToText(_Anchor.Order);
+	
+	ManialinkText = 		
+	"""
+	<script><!--		
+		main() {
+			
+			declare Buttons = [(Page.GetFirstChild("checkpointOrder") as CMlEntry)];
+					
+			declare Boolean Finish for Page;
+			declare Text AnchorOrder for Page;
+			
+			Finish = False;
+			
+			foreach(Button, Buttons){
+				Button.Value = AnchorOrder;
+			}
+			
+						
+			Finish = False;	
+			while(!Finish) {
+				yield;
+				
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::EntrySubmit : {
+							AnchorOrder = Buttons[0].Value;
+						}
+						case CMlEvent::Type::MouseClick : {
+							if (Event.ControlId == "back") {
+								Finish = True;
+							}
+						}	
+					}
+				}
+			}
+		}			
+	--></script>
+	<frame posn="-75 35">
+		<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+		<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
+	</frame>
+	<frame posn="-75 -10">
+		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
+		<entry posn="-41 -10 0" sizen="14 5" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="2" textformat="default" scale="2.5" valign="center2" halign="center"/>	
+		<label posn="-40 11 0" sizen="77 26" text="Set the position (order) of the checkpoint below. (Press enter to valide changes)" valign="center" halign="center" autonewline="1"/>
+		<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
+	</frame>
+	""";
+  
+	
+	Finish = False;
+	
+	while(!Finish){
+		yield;
+	}
+	
+	_Anchor.Order = TextLib::ToInteger(AnchorOrder);
+	
+	UpdateValidability();
+}
+
+// ---------------------------------- //
+// Manialink for non editable anchor
+Void NoEditManialink() {
+	declare Boolean Finish for ManialinkPage;
+	
+	ManialinkText = """
+		<script><!--			
+			main() {
+				declare Boolean Finish for Page;
+				Finish = False;	
+				while(!Finish) {
+					yield;
+					
+					foreach(Event in PendingEvents) {
+						switch(Event.Type){
+							case CMlEvent::Type::MouseClick : {
+								if (Event.ControlId == "back") {
+									Finish = True;
+								}
+							}	
+						}
+					}
+				}
+			}			
+		--></script>
+		<frame posn="-75 35">
+			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
+		</frame>
+		<frame posn="-75 -10">
+			<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
+			<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+			<label posn="-40 11 0" sizen="77 26" text="This anchor is not editable" valign="center" halign="center" autonewline="1"/>
+			<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
+		</frame>
+	""";
+	
+	Finish = False;
+	
+	while(!Finish){
+		yield;
+	}
+	
+	UpdateValidability();	
+}
+
+// ---------------------------------- //
+// Show the anchor edition manialink
+Void EditAnchorData(Ident _EditedAnchorDataId) {
+
+	declare Anchor <=> AnchorData[_EditedAnchorDataId];
+	
+	if (AnchorData[_EditedAnchorDataId].DefaultTag == "Checkpoint"){
+		EditAnchorManialink(Anchor);
+	} else {
+		NoEditManialink();
+	}
+	
+
+	UpdateValidability();
+}
+
+// ---------------------------------- //
+// Main
+// ---------------------------------- //
+main() {	
+	CustomEditAnchorData = True;
+	Rules = _("You must place exactly one Spawn, at least one Checkpoint. The last Checkpoint will automatically be defined as the Goal");
+	InitAnchors();	
+	UpdateValidability();
+	while (True) {	
+		yield;
+		ManialinkText = "";			
+		foreach (Event in PendingEvents) {
+			if (Event.Type == CPluginEvent::Type::MapModified) {
+				UpdateValidability();			
+			} else if (Event.Type == CPluginEvent::Type::EditAnchor) {
+				EditAnchorData(Event.EditedAnchorDataId);
+			} else if (Event.Type == CPluginEvent::Type::StartValidation) {
+				StartTestMapWithMode("CustomObstacle.Script.txt");
+			}
+		}		
+	}	
+}

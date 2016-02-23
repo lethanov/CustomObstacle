@@ -1,0 +1,212 @@
+/**
+ *	Obstacle Custom GameMode
+ *  Author : kana & lethan
+ *  Original author : steeffeen
+ */
+
+// ---------------------------------- //
+// Requirements
+// ---------------------------------- //
+#Extends "Modes/ShootMania/ModeBase.Script.txt"
+
+#Include "MathLib" as MathLib
+#Include "TextLib" as TextLib
+#Include "Libs/Nadeo/Message.Script.txt" as Message
+#Include "Libs/Nadeo/Interface.Script.txt" as Interface
+#Include "Libs/ChronoObs.Script.txt" as Chrono
+#Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
+
+// ---------------------------------- //
+// Settings
+// ---------------------------------- //
+
+#Const Description _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan")
+#Const UITickPeriod 200
+
+// ---------------------------------- //
+// Global var
+// ---------------------------------- //
+declare Text _GamePhase;
+declare CSmMapLandmark _MainSpawn;
+
+declare CSmMapLandmark[] _ChecksRaw;
+
+declare Integer[Ident] _TimeLines;
+declare Integer[Ident] _CheckpointCurrent;
+
+declare Integer _CheckpointsCount;
+
+// ---------------------------------- //
+// Set rules
+// ---------------------------------- //
+***Rules***
+***
+declare ModeName = "Custom Obstacle";
+declare ModeRules = TextLib::Compose(_("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan"), "$"^SpawnScreen::GetModeColor());
+SpawnScreen::ResetRulesSection();
+SpawnScreen::AddSubsection(_("Obstacle Custom GameMode"), ModeRules, 20.);
+SpawnScreen::CreatePrettyRules(ModeName);
+ModeStatusMessage = _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan");
+***
+
+// ---------------------------------- //
+// Server start
+// ---------------------------------- //
+***StartServer***
+***
+// ---------------------------------- //
+// Set mode options
+UseClans = False;
+UseAllies = False;
+// ---------------------------------- //
+// Create the rules
+---Rules---
+
+// ---------------------------------- //
+// Initialize UI
+SpawnScreen::CreateScores("Score.RoundPoints");
+SpawnScreen::CreateMapInfo();
+//Interface::CreateRank();
+
+// ---------------------------------- //
+// Create the scores table
+ST2::SetStyle("LibST_SMBaseSolo");
+ST2::SetStyle("LibST_SMBasePoints");
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
+***
+
+
+// ---------------------------------- //
+// Map start
+// ---------------------------------- //
+***StartMap***
+***
+_GamePhase = "init";
+
+Score::MatchBegin();
+SM::SetupDefaultVisibility();
+Chrono::Load();
+
+InitObstacle();
+
+// Init bases
+foreach (Base in MapBases) {
+	Base.Clan = 1;
+	Base.IsActive = True;
+}
+
+
+
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
+
+***
+
+// ---------------------------------- //
+// Play loop
+// ---------------------------------- //
+***PlayLoop***
+***
+if(_GamePhase == "init"){
+	sleep(2000);
+	declare Text authorMsg = "Author : " ^ Map.AuthorNickName ^ " (" ^ Map.AuthorLogin ^ ")";
+	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
+	Message::SendBigMessage(MapName, 5000, 3, CUIConfig::EUISound::EndRound, 0);
+
+	sleep(2000);
+	
+	StartTime = Now;
+	EndTime = -1;
+	
+	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	
+	_GamePhase = "play";
+}
+if(_GamePhase == "play"){
+	//Players
+
+
+	foreach(Player, Players){
+		if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
+			COSpawnPlayer(Player);
+		}
+		
+		if(Player.CapturedLandmark != Null){
+			if(_CheckpointCurrent[Player.Id] == Player.CapturedLandmark.Order){
+				if(_CheckpointCurrent[Player.Id] == _CheckpointsCount){
+					Chrono::Stop(Player.Id);
+					_CheckpointCurrent[Player.Id] = 1;
+					UnspawnPlayer(Player);
+					Chrono::Reset(Player.Id);
+					Message::SendStatusMessage(Player, "Finish !", 2000, 3, CUIConfig::EUISound::VictoryPoint, 1);
+				} else {
+					Message::SendStatusMessage("Checkpoint ! " ^ _CheckpointCurrent[Player.Id] ^ "/" ^ _CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, 1);
+					_CheckpointCurrent[Player.Id] += 1;
+				}
+			}
+		}
+	}
+	
+	
+}
+
+Message::Loop();
+***
+
+
+// ---------------------------------- //
+// Map end
+// ---------------------------------- //
+/****EndMap***
+***
+****/
+// ---------------------------------- //
+// Server end
+// ---------------------------------- //
+***EndServer***
+***
+UIManager.UILayerDestroyAll();
+Interface::DestroyRank();
+SpawnScreen::DestroyRules();
+SpawnScreen::DestroyScores();
+SpawnScreen::DestroyMapInfo();
+***
+
+//Functions
+
+Void InitObstacle(){
+	_CheckpointsCount = 0;
+	_ChecksRaw.clear();
+	_TimeLines.clear();
+	
+	UIManager.UIAll.OverlayHideMapInfo = False;
+	
+	//Get Spawns
+	foreach(Spawn, MapLandmarks_PlayerSpawn){
+		if(Spawn.Tag == "Spawn"){
+			_MainSpawn <=> Spawn;
+		}
+	}
+	
+	//Get checkpoint count
+	foreach(Checkpoint, MapLandmarks_Gauge){
+		if(Checkpoint.Tag == "Checkpoint"){
+			_ChecksRaw.add(Checkpoint);
+			_CheckpointsCount += 1;
+		}
+	}
+	
+	//Players
+	foreach(Player, Players){
+		Chrono::Create(Player.Id);
+		_CheckpointCurrent[Player.Id] = 1; 
+	}
+}
+
+Void COSpawnPlayer(CSmPlayer _Player){
+	_Player.ArmorMax = 100;
+	SpawnPlayer(_Player, 0, 100, _MainSpawn.PlayerSpawn, Now);
+	Chrono::Start(_Player.Id, 3000);
+}
