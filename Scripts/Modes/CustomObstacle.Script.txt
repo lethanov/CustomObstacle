@@ -29,11 +29,12 @@
 // Global var
 // ---------------------------------- //
 declare Text _GamePhase;
+
 declare CSmMapLandmark _MainSpawn;
-
 declare CSmMapLandmark[] _ChecksRaw;
+declare CSmMapLandmark[Integer] _Checkpoints;
 
-declare Integer[Ident] _TimeLines;
+declare Integer[Ident] _StartTimes;
 declare Integer[Ident] _CheckpointCurrent;
 
 declare Integer _CheckpointsCount;
@@ -99,7 +100,6 @@ foreach (Base in MapBases) {
 }
 
 
-
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 
 ***
@@ -109,6 +109,8 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 // ---------------------------------- //
 ***PlayLoop***
 ***
+CheckForNewPlayers();
+
 if(_GamePhase == "init"){
 	sleep(2000);
 	declare Text authorMsg = "Author : " ^ Map.AuthorNickName ^ " (" ^ Map.AuthorLogin ^ ")";
@@ -121,29 +123,43 @@ if(_GamePhase == "init"){
 	EndTime = -1;
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
-	
+		
 	_GamePhase = "play";
+	
+	
 }
 if(_GamePhase == "play"){
 	//Players
-
-
-	foreach(Player, Players){
-		if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
+	foreach(Player, Players){	
+		if(_StartTimes.existskey(Player.Id) && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
 			COSpawnPlayer(Player);
+		}
+		if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
+			if(_StartTimes.existskey(Player.Id)){
+				if(_CheckpointCurrent[Player.Id] == 0){
+					Chrono::Reset(Player.Id);
+					Chrono::Start(Player.Id, 0);
+					_StartTimes[Player.Id] = Now;
+					_CheckpointCurrent[Player.Id] = 1;
+					UpdateMarkerCheckpoint(Player, False);
+				}
+			}
 		}
 		
 		if(Player.CapturedLandmark != Null){
-			if(_CheckpointCurrent[Player.Id] == Player.CapturedLandmark.Order){
+			if(_Checkpoints[_CheckpointCurrent[Player.Id]] == Player.CapturedLandmark){
 				if(_CheckpointCurrent[Player.Id] == _CheckpointsCount){
-					Chrono::Stop(Player.Id);
-					_CheckpointCurrent[Player.Id] = 1;
+					UpdateMarkerCheckpoint(Player, True);
 					UnspawnPlayer(Player);
-					Chrono::Reset(Player.Id);
+					Chrono::Stop(Player.Id);
+					_CheckpointCurrent[Player.Id] = 0;
+					
 					Message::SendStatusMessage(Player, "Finish !", 2000, 3, CUIConfig::EUISound::VictoryPoint, 1);
+					Message::SendBigMessage("Score : " ^ (Now - _StartTimes[Player.Id]), 5000, 3, CUIConfig::EUISound::Silence, 0);
 				} else {
-					Message::SendStatusMessage("Checkpoint ! " ^ _CheckpointCurrent[Player.Id] ^ "/" ^ _CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, 1);
+					Message::SendStatusMessage(Player, "Checkpoint ! " ^ _CheckpointCurrent[Player.Id] ^ "/" ^ _CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, _CheckpointCurrent[Player.Id]);
 					_CheckpointCurrent[Player.Id] += 1;
+					UpdateMarkerCheckpoint(Player, False);
 				}
 			}
 		}
@@ -175,11 +191,38 @@ SpawnScreen::DestroyMapInfo();
 ***
 
 //Functions
+Void CheckForNewPlayers(){
+	foreach(Player, Players){	
+		if(!_StartTimes.existskey(Player.Id)) {
+			_StartTimes[Player.Id] = 0;
+			_CheckpointCurrent[Player.Id] = 0;
+			Chrono::Create(Player.Id);
+		}
+	}
+}
+
+Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
+	declare UI <=> UIManager.GetUI(_Player);
+	
+	declare cpCurrent = _CheckpointCurrent[_Player.Id];
+	
+	log(cpCurrent ^ " - " ^ _CheckpointsCount);
+	
+	if(!_Finish){
+		if(cpCurrent != _CheckpointsCount){
+			UI.MarkersXML = """<marker label="CP {{{cpCurrent}}}" pos="{{{_Checkpoints[cpCurrent].Position.X}}} {{{_Checkpoints[cpCurrent].Position.Y + 2}}} {{{_Checkpoints[cpCurrent].Position.Z}}}" />""";
+		} else {
+			UI.MarkersXML = """<marker label="Finish" pos="{{{_Checkpoints[cpCurrent].Position.X}}} {{{_Checkpoints[cpCurrent].Position.Y + 2}}} {{{_Checkpoints[cpCurrent].Position.Z}}}" />""";
+		}
+	} else {
+		UI.MarkersXML = "";
+	}
+}
 
 Void InitObstacle(){
 	_CheckpointsCount = 0;
 	_ChecksRaw.clear();
-	_TimeLines.clear();
+	_StartTimes.clear();
 	
 	UIManager.UIAll.OverlayHideMapInfo = False;
 	
@@ -198,15 +241,27 @@ Void InitObstacle(){
 		}
 	}
 	
-	//Players
-	foreach(Player, Players){
-		Chrono::Create(Player.Id);
-		_CheckpointCurrent[Player.Id] = 1; 
+	//Reorganise
+	for(i, 1, _CheckpointsCount){
+		declare CSmMapLandmark nextCheck;
+	
+		foreach(CurCheck, _ChecksRaw){
+		//First one
+			if(nextCheck == Null){
+			nextCheck <=> CurCheck;
+			} else {
+				if(CurCheck.Order < nextCheck.Order){
+					nextCheck <=> CurCheck;
+				}
+			}
+		}
+		
+		_Checkpoints[i] <=> nextCheck;
+		declare removed = _ChecksRaw.remove(nextCheck);
 	}
 }
 
 Void COSpawnPlayer(CSmPlayer _Player){
 	_Player.ArmorMax = 100;
 	SpawnPlayer(_Player, 0, 100, _MainSpawn.PlayerSpawn, Now);
-	Chrono::Start(_Player.Id, 3000);
 }

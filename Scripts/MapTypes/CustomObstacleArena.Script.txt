@@ -95,6 +95,7 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 						}
 						case CMlEvent::Type::MouseClick : {
 							if (Event.ControlId == "back") {
+								AnchorOrder = Buttons[0].Value;
 								Finish = True;
 							}
 						}	
