@@ -10,3 +10,4 @@ Mode :
 - Show Current Version 
 - Respawn player at last cp
 - Format time to hh:mm:ss.SS
+- make a new scriptTable to display the ranking.
