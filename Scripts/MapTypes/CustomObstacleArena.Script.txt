@@ -67,27 +67,27 @@ Void UpdateValidability(){
 // if a new checkpoint was added, add automaticly the next order to this cp.
 Void autoOrderCheckpoint(){
 	numCP_old = Anchor::GetCount("Checkpoint");
+	numCP_old += Anchor::GetCount("Goal");
 	Anchor::UpdateAnchorCounts();
 	// if new checkpoint ?
-	if (numCP_old < Anchor::GetCount("Checkpoint"))
+	if (numCP_old < (Anchor::GetCount("Checkpoint") + Anchor::GetCount("Goal")))
 	{
 		// cont the max order of checkpoint
 		declare Integer maxNumberOrderCp;
 		maxNumberOrderCp = 0;
 		foreach (Anchor in AnchorData) {
-			if (Anchor.Tag == "Checkpoint" && (Anchor.Order > maxNumberOrderCp)) {
+			if ((Anchor.Tag == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order > maxNumberOrderCp)) {
 				maxNumberOrderCp = Anchor.Order;
 			}
 		}
 		// apply max order to the next checkpoint
 		maxNumberOrderCp += 1;
 		foreach (Anchor in AnchorData) {
-			if (Anchor.Tag == "Checkpoint" && (Anchor.Order == 0))
+			if ((Anchor.Tag == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order == 0))
 			{
 				Anchor.Order = maxNumberOrderCp;
 			}
 		}
-
 	}	
 }
 
@@ -205,7 +205,7 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 
 	declare Anchor <=> AnchorData[_EditedAnchorDataId];
 	
-	if (AnchorData[_EditedAnchorDataId].DefaultTag == "Checkpoint"){
+	if (AnchorData[_EditedAnchorDataId].DefaultTag == "Checkpoint" || AnchorData[_EditedAnchorDataId].DefaultTag == "Goal" ){
 		EditAnchorManialink(Anchor);
 	} else {
 		NoEditManialink();
@@ -220,18 +220,43 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 Void warningRuleSpawn()
 {
 	Anchor::UpdateAnchorCounts();
-	if (Anchor::GetCount("Spawn") > 1)
+	if (Anchor::GetCount("Goal") > 1 && Anchor::GetCount("Spawn") > 1)
 	{
-	ManialinkText = 		
-	"""
-	<frame posn="-75 35">
-		<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-		<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-		<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
-	</frame>
-	""";
-	ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ManialinkText = 		
+		"""
+		<frame posn="-75 35">
+			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
+		</frame>
+		""";
 	}
+	else if (Anchor::GetCount("Goal") > 1)
+	{
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ManialinkText = 		
+		"""
+		<frame posn="-75 35">
+			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+			<label posn="-40 12 0" sizen="77 30" text="You must place Maximum one goal bloc. if there are not one goal bloc, The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
+		</frame>
+		""";
+	}
+	else if (Anchor::GetCount("Spawn") > 1)
+	{
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+		ManialinkText = 		
+		"""
+		<frame posn="-75 35">
+			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players." valign="center" halign="center" autonewline="1" textsize="1"/>
+		</frame>
+		""";
+	}
+	
 }
 
 // ---------------------------------- //

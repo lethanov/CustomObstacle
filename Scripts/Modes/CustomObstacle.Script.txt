@@ -24,20 +24,29 @@
 #Const Description _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan")
 #Const UITickPeriod 200
 
-#Const Revision 2
+#Const Revision 3
 
 // ---------------------------------- //
 // Global var
 // ---------------------------------- //
 declare Text _GamePhase;
+
 declare CUILayer DebugInfo;
+declare CUILayer[Ident] Times;
 
 declare CSmMapLandmark MainSpawn;
 declare CSmMapLandmark[] ChecksRaw;
 declare CSmMapLandmark[Integer] Checkpoints;
 
 declare Integer[Ident] StartTimes;
+declare Integer[Ident] PreviousTimes;
+declare Integer[Ident] BestTimes;
+
 declare Integer[Ident] CheckpointNext;
+declare Integer[Ident] Respawns;
+
+declare Integer[Integer[Ident]] CheckpointTimes;
+
 
 declare Integer CheckpointsCount;
 
@@ -71,7 +80,7 @@ DebugInfo = UIManager.UILayerCreate();
 UIManager.UIAll.UILayers.add(DebugInfo);
 DebugInfo.ManialinkPage = """
 	<frame posn="-158 88 0">
-				<label posn="0 0 1" halign="left" style="TextButtonNav" text="Custom Obsctacle Revision : {{{Revision}}}" />
+				<label posn="0 0 1" halign="left" style="TextButtonNav" text="Custom Obstacle Revision : {{{Revision}}}" />
 				
 	</frame>
 """;
@@ -160,6 +169,7 @@ if(_GamePhase == "play"){
 					Chrono::Start(Player.Id, 0);
 					StartTimes[Player.Id] = Now;
 					CheckpointNext[Player.Id] = 1;
+					
 					UpdateMarkerCheckpoint(Player, False);
 				}
 			}
@@ -221,17 +231,6 @@ SpawnScreen::DestroyMapInfo();
 ***
 
 //Functions
-
-Void CheckForNewPlayers(){
-	foreach(Player, Players){	
-		if(!StartTimes.existskey(Player.Id)) {
-			StartTimes[Player.Id] = 0;
-			CheckpointNext[Player.Id] = 0;
-			Chrono::Create(Player.Id);
-		}
-	}
-}
-
 Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 	declare UI <=> UIManager.GetUI(_Player);
 	
@@ -245,6 +244,35 @@ Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 		}
 	} else {
 		UI.MarkersXML = "";
+	}
+}
+
+Void UpdateTimes(CSmPlayer _Player){
+	declare UI <=> UIManager.GetUI(_Player);
+
+	UI.ManialinkPage = """
+	<frame posn="130 -70 0" scale="0.8">
+	<quad posn="-20 1 0" sizen="60 22" bgcolor="FFFA" style="Bgs1" substyle="BgButtonGrayed"/>
+	<label posn="-17 -3 0" sizen="20 5" text="Best time" id="BestTime"/>
+	<label posn="-17 -12 0" sizen="20 5" text="Previous" id="Previous"/>
+	<label posn="22 -5 0" sizen="34 9" text="{{{TextLib::TimeToText(BestTimes[_Player.Id], True)}}}" style="TextRaceChronoWarning" textsize="5" halign="center" valign="center" id="best"/>
+	<label posn="22 -14 0" sizen="34 9" text="{{{TextLib::TimeToText(PreviousTimes[_Player.Id], True)}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="prev"/>
+</frame>
+	""";
+}
+
+Void CheckForNewPlayers(){
+	foreach(Player, Players){	
+		if(!StartTimes.existskey(Player.Id)) {
+			StartTimes[Player.Id] = 0;
+			CheckpointNext[Player.Id] = 0;
+			PreviousTimes[Player.Id] = 0;
+			BestTimes[Player.Id] = 0;
+			Respawns[Player.Id] = 0;
+			
+			Chrono::Create(Player.Id);
+			UpdateTimes(Player);
+		}
 	}
 }
 
@@ -312,12 +340,19 @@ Void CORespawnPlayer(CSmPlayer _Player){
 		UnspawnPlayer(_Player);
 		Chrono::Stop(_Player.Id);
 		CheckpointNext[_Player.Id] = 0;
+		Respawns[_Player.Id] = 0;
 	} else {
 		RespawnPlayer(_Player, Checkpoints[CheckpointNext[_Player.Id] - 1]);
+		Respawns[_Player.Id] += 1;
 	}
 }
 
 Void CheckpointStuff(CSmPlayer _Player){
+
+	declare time = Now - StartTimes[_Player.Id];
+	
+	//CheckpointTimes[CheckpointNext[_Player.Id].Id] = time;
+
 	Message::SendStatusMessage(_Player, "Checkpoint ! " ^ CheckpointNext[_Player.Id] ^ "/" ^ CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, 0);
 	Message::SendBigMessage(_Player, TextLib::TimeToText(Now - StartTimes[_Player.Id], True), 5000, 3, CUIConfig::EUISound::Silence, 0);
 	CheckpointNext[_Player.Id] += 1;
@@ -329,7 +364,38 @@ Void FinishStuff(CSmPlayer _Player){
 	UnspawnPlayer(_Player);
 	Chrono::Stop(_Player.Id);
 	CheckpointNext[_Player.Id] = 0;
-					
-	Message::SendStatusMessage(_Player, "Finish !", 2000, 3, CUIConfig::EUISound::VictoryPoint, 1);
-	Message::SendBigMessage(_Player, "Score : " ^ TextLib::TimeToText(Now - StartTimes[_Player.Id], True), 5000, 3, CUIConfig::EUISound::Silence, 0);
+	Respawns[_Player.Id] = 0;
+	
+	declare time = Now - StartTimes[_Player.Id];
+	declare diff = time - BestTimes[_Player.Id];	
+	declare newRecord = False;
+	declare Text diffText;
+	
+	PreviousTimes[_Player.Id] = time;
+	
+	if(BestTimes[_Player.Id] == 0){
+		BestTimes[_Player.Id] = PreviousTimes[_Player.Id];
+		diffText = "";
+	} else {
+		if(PreviousTimes[_Player.Id] < BestTimes[_Player.Id]){
+			diff = time - BestTimes[_Player.Id];
+			BestTimes[_Player.Id] = PreviousTimes[_Player.Id];
+			newRecord = True;
+			
+			diffText = " ($0f0" ^ TextLib::TimeToText(diff, True) ^ "$fff)";
+		} else {
+			diffText = " ($f00+" ^ TextLib::TimeToText(diff, True) ^ "$fff)";
+		}
+	}
+	
+	
+						
+	Message::SendStatusMessage(_Player, "Race completed. " ^ TextLib::ToText(Respawns[_Player.Id]) ^ " respawns." , 4000, 3, CUIConfig::EUISound::Silence, 1);
+	if(newRecord){
+		Message::SendBigMessage(_Player, "New record : " ^ TextLib::TimeToText(time, True) ^ diffText, 4000, 3, CUIConfig::EUISound::VictoryPoint, 0);
+	} else {
+		Message::SendBigMessage(_Player, "Time : " ^ TextLib::TimeToText(time, True) ^ diffText, 4000, 3, CUIConfig::EUISound::EndMatch, 0);
+	}
+	
+	UpdateTimes(_Player);
 }
