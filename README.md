@@ -1,6 +1,7 @@
 # CustomObstacle
 
 TODO List
+
 MapType :
 - Allow goals
 - Delete "Rules" if not needed.
