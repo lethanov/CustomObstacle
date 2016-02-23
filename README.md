@@ -8,3 +8,4 @@ MapType :
 
 Mode :
 - Make a new ScriptTable to display the ranking.
+- increase the sound when the player makes a best time on the CP.
