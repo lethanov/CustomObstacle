@@ -6,14 +6,19 @@
 #Include "Libs/Nadeo/MapType.Script.txt" as MapType
 
 declare Text Rules;
+declare Integer numCP_old;
 
-Void InitAnchors() {
+Void InitAnchors(){
 	declare Order = 1;
 	foreach(Anchor, AnchorData) {
 		if(Anchor.DefaultTag == "Spawn"){
 			Anchor.Tag = Anchor.DefaultTag;
 			Anchor.Order = 0;
 		} else if(Anchor.DefaultTag == "Checkpoint"){
+			Anchor.Tag = Anchor.DefaultTag;
+			Anchor.Order = Order;
+			Order += 1;
+		} else if(Anchor.DefaultTag == "Goal"){
 			Anchor.Tag = Anchor.DefaultTag;
 			Anchor.Order = Order;
 			Order += 1;
@@ -26,8 +31,7 @@ Void InitAnchors() {
 
 // ---------------------------------- //
 // Check if the map is valid
-Void UpdateValidability() {
-	log("lol");
+Void UpdateValidability(){
 	ValidationStatus = CSmMapType::ValidationStatus::Validated;
 
 	Anchor::UpdateAnchorCounts(); 
@@ -57,6 +61,34 @@ Void UpdateValidability() {
 			}
 		}
 	}
+}
+
+// ---------------------------------- //
+// if a new checkpoint was added, add automaticly the next order to this cp.
+Void autoOrderCheckpoint(){
+	numCP_old = Anchor::GetCount("Checkpoint");
+	Anchor::UpdateAnchorCounts();
+	// if new checkpoint ?
+	if (numCP_old < Anchor::GetCount("Checkpoint"))
+	{
+		// cont the max order of checkpoint
+		declare Integer maxNumberOrderCp;
+		maxNumberOrderCp = 0;
+		foreach (Anchor in AnchorData) {
+			if (Anchor.Tag == "Checkpoint" && (Anchor.Order > maxNumberOrderCp)) {
+				maxNumberOrderCp = Anchor.Order;
+			}
+		}
+		// apply max order to the next checkpoint
+		maxNumberOrderCp += 1;
+		foreach (Anchor in AnchorData) {
+			if (Anchor.Tag == "Checkpoint" && (Anchor.Order == 0))
+			{
+				Anchor.Order = maxNumberOrderCp;
+			}
+		}
+
+	}	
 }
 
 // ---------------------------------- //
@@ -104,11 +136,6 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 			}
 		}			
 	--></script>
-	<frame posn="-75 35">
-		<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-		<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-		<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
-	</frame>
 	<frame posn="-75 -10">
 		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
 		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
@@ -155,11 +182,6 @@ Void NoEditManialink() {
 				}
 			}			
 		--></script>
-		<frame posn="-75 35">
-			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
-		</frame>
 		<frame posn="-75 -10">
 			<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
 			<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
@@ -194,6 +216,25 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 }
 
 // ---------------------------------- //
+// if there are more spawn than 1, display a warning message
+Void warningRuleSpawn()
+{
+	Anchor::UpdateAnchorCounts();
+	if (Anchor::GetCount("Spawn") > 1)
+	{
+	ManialinkText = 		
+	"""
+	<frame posn="-75 35">
+		<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+		<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
+	</frame>
+	""";
+	ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+	}
+}
+
+// ---------------------------------- //
 // Main
 // ---------------------------------- //
 main() {	
@@ -206,12 +247,14 @@ main() {
 		ManialinkText = "";			
 		foreach (Event in PendingEvents) {
 			if (Event.Type == CPluginEvent::Type::MapModified) {
-				UpdateValidability();			
+				autoOrderCheckpoint();
+				UpdateValidability();
 			} else if (Event.Type == CPluginEvent::Type::EditAnchor) {
 				EditAnchorData(Event.EditedAnchorDataId);
 			} else if (Event.Type == CPluginEvent::Type::StartValidation) {
 				StartTestMapWithMode("CustomObstacle.Script.txt");
 			}
-		}		
+		}
+		warningRuleSpawn();	
 	}	
 }

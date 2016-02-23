@@ -4,15 +4,14 @@
  *  Original author : steeffeen
  */
 
-// ---------------------------------- //
-// Requirements
-// ---------------------------------- //
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
+
+#Const CompatibleMapTypes "ObstacleArena, ObstacleTitleArena, CustomObstacleArena"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Message.Script.txt" as Message
-#Include "Libs/Nadeo/Interface.Script.txt" as Interface
+//#Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Lethan/ChronoObs.Script.txt" as Chrono
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
@@ -25,19 +24,22 @@
 #Const Description _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan")
 #Const UITickPeriod 200
 
+#Const Revision 2
+
 // ---------------------------------- //
 // Global var
 // ---------------------------------- //
 declare Text _GamePhase;
+declare CUILayer DebugInfo;
 
-declare CSmMapLandmark _MainSpawn;
-declare CSmMapLandmark[] _ChecksRaw;
-declare CSmMapLandmark[Integer] _Checkpoints;
+declare CSmMapLandmark MainSpawn;
+declare CSmMapLandmark[] ChecksRaw;
+declare CSmMapLandmark[Integer] Checkpoints;
 
-declare Integer[Ident] _StartTimes;
-declare Integer[Ident] _CheckpointCurrent;
+declare Integer[Ident] StartTimes;
+declare Integer[Ident] CheckpointNext;
 
-declare Integer _CheckpointsCount;
+declare Integer CheckpointsCount;
 
 // ---------------------------------- //
 // Set rules
@@ -61,6 +63,19 @@ ModeStatusMessage = _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRe
 // Set mode options
 UseClans = False;
 UseAllies = False;
+UsePvPCollisions = False;
+UsePvPWeapons = False;
+
+
+DebugInfo = UIManager.UILayerCreate();
+UIManager.UIAll.UILayers.add(DebugInfo);
+DebugInfo.ManialinkPage = """
+	<frame posn="-158 88 0">
+				<label posn="0 0 1" halign="left" style="TextButtonNav" text="Custom Obsctacle Revision : {{{Revision}}}" />
+				
+	</frame>
+""";
+
 // ---------------------------------- //
 // Create the rules
 ---Rules---
@@ -87,6 +102,8 @@ ST2::Build("SM");
 ***
 _GamePhase = "init";
 
+
+
 Score::MatchBegin();
 SM::SetupDefaultVisibility();
 Chrono::Load();
@@ -112,12 +129,12 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 CheckForNewPlayers();
 
 if(_GamePhase == "init"){
-	sleep(2000);
+	sleep(500);
 	declare Text authorMsg = "Author : " ^ Map.AuthorNickName ^ " (" ^ Map.AuthorLogin ^ ")";
 	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
 	Message::SendBigMessage(MapName, 5000, 3, CUIConfig::EUISound::EndRound, 0);
 
-	sleep(2000);
+	sleep(1000);
 	
 	StartTime = Now;
 	EndTime = -1;
@@ -131,40 +148,53 @@ if(_GamePhase == "init"){
 if(_GamePhase == "play"){
 	//Players
 	foreach(Player, Players){	
-		if(_StartTimes.existskey(Player.Id) && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
-			COSpawnPlayer(Player);
+		if(StartTimes.existskey(Player.Id) && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
+			if(CheckpointNext[Player.Id] == 0){
+				COSpawnPlayer(Player);
+			}
 		}
 		if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
-			if(_StartTimes.existskey(Player.Id)){
-				if(_CheckpointCurrent[Player.Id] == 0){
+			if(StartTimes.existskey(Player.Id)){
+				if(CheckpointNext[Player.Id] == 0){
 					Chrono::Reset(Player.Id);
 					Chrono::Start(Player.Id, 0);
-					_StartTimes[Player.Id] = Now;
-					_CheckpointCurrent[Player.Id] = 1;
+					StartTimes[Player.Id] = Now;
+					CheckpointNext[Player.Id] = 1;
 					UpdateMarkerCheckpoint(Player, False);
 				}
 			}
 		}
 		
 		if(Player.CapturedLandmark != Null){
-			if(_Checkpoints[_CheckpointCurrent[Player.Id]] == Player.CapturedLandmark){
-				if(_CheckpointCurrent[Player.Id] == _CheckpointsCount){
-					UpdateMarkerCheckpoint(Player, True);
-					UnspawnPlayer(Player);
-					Chrono::Stop(Player.Id);
-					_CheckpointCurrent[Player.Id] = 0;
-					
-					Message::SendStatusMessage(Player, "Finish !", 2000, 3, CUIConfig::EUISound::VictoryPoint, 1);
-					Message::SendBigMessage("Score : " ^ (Now - _StartTimes[Player.Id]), 5000, 3, CUIConfig::EUISound::Silence, 0);
-				} else {
-					Message::SendStatusMessage(Player, "Checkpoint ! " ^ _CheckpointCurrent[Player.Id] ^ "/" ^ _CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, _CheckpointCurrent[Player.Id]);
-					_CheckpointCurrent[Player.Id] += 1;
-					UpdateMarkerCheckpoint(Player, False);
+			if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
+				if(CheckpointNext[Player.Id] == CheckpointsCount){
+					FinishStuff(Player);
 				}
 			}
+			if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
+				if(Player.CapturedLandmark.Order == CheckpointNext[Player.Id] && CheckpointNext[Player.Id] == CheckpointsCount){
+					FinishStuff(Player);
+				} else {
+					if(Player.CapturedLandmark.Order == CheckpointNext[Player.Id]){
+						CheckpointStuff(Player);
+					}
+				}
+			}			
 		}
 	}
 	
+	//Events
+	foreach(Event, PendingEvents){
+		switch(Event.Type){
+			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
+				CORespawnPlayer(Event.Player);
+			}
+			case CSmModeEvent::EType::OnArmorEmpty : {
+				Discard(Event);
+				CORespawnPlayer(Event.Victim);
+			}
+		}
+	}
 	
 }
 
@@ -184,18 +214,19 @@ Message::Loop();
 ***EndServer***
 ***
 UIManager.UILayerDestroyAll();
-Interface::DestroyRank();
+//Interface::DestroyRank();
 SpawnScreen::DestroyRules();
 SpawnScreen::DestroyScores();
 SpawnScreen::DestroyMapInfo();
 ***
 
 //Functions
+
 Void CheckForNewPlayers(){
 	foreach(Player, Players){	
-		if(!_StartTimes.existskey(Player.Id)) {
-			_StartTimes[Player.Id] = 0;
-			_CheckpointCurrent[Player.Id] = 0;
+		if(!StartTimes.existskey(Player.Id)) {
+			StartTimes[Player.Id] = 0;
+			CheckpointNext[Player.Id] = 0;
 			Chrono::Create(Player.Id);
 		}
 	}
@@ -204,15 +235,13 @@ Void CheckForNewPlayers(){
 Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 	declare UI <=> UIManager.GetUI(_Player);
 	
-	declare cpCurrent = _CheckpointCurrent[_Player.Id];
-	
-	log(cpCurrent ^ " - " ^ _CheckpointsCount);
-	
+	declare cpNext = CheckpointNext[_Player.Id];
+		
 	if(!_Finish){
-		if(cpCurrent != _CheckpointsCount){
-			UI.MarkersXML = """<marker label="CP {{{cpCurrent}}}" pos="{{{_Checkpoints[cpCurrent].Position.X}}} {{{_Checkpoints[cpCurrent].Position.Y + 2}}} {{{_Checkpoints[cpCurrent].Position.Z}}}" />""";
+		if(cpNext != CheckpointsCount){
+			UI.MarkersXML = """<marker label="CP {{{cpNext}}}" pos="{{{Checkpoints[cpNext].Position.X}}} {{{Checkpoints[cpNext].Position.Y + 2}}} {{{Checkpoints[cpNext].Position.Z}}}" />""";
 		} else {
-			UI.MarkersXML = """<marker label="Finish" pos="{{{_Checkpoints[cpCurrent].Position.X}}} {{{_Checkpoints[cpCurrent].Position.Y + 2}}} {{{_Checkpoints[cpCurrent].Position.Z}}}" />""";
+			UI.MarkersXML = """<marker label="Finish" pos="{{{Checkpoints[cpNext].Position.X}}} {{{Checkpoints[cpNext].Position.Y + 2}}} {{{Checkpoints[cpNext].Position.Z}}}" />""";
 		}
 	} else {
 		UI.MarkersXML = "";
@@ -220,48 +249,87 @@ Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 }
 
 Void InitObstacle(){
-	_CheckpointsCount = 0;
-	_ChecksRaw.clear();
-	_StartTimes.clear();
+	CheckpointsCount = 0;
+	ChecksRaw.clear();
+	StartTimes.clear();
 	
 	UIManager.UIAll.OverlayHideMapInfo = False;
 	
 	//Get Spawns
 	foreach(Spawn, MapLandmarks_PlayerSpawn){
-		if(Spawn.Tag == "Spawn"){
-			_MainSpawn <=> Spawn;
+		if(TextLib::SubText(Spawn.Tag, 0, 5) == "Spawn"){
+			MainSpawn <=> Spawn;
 		}
 	}
 	
 	//Get checkpoint count
-	foreach(Checkpoint, MapLandmarks_Gauge){
-		if(Checkpoint.Tag == "Checkpoint"){
-			_ChecksRaw.add(Checkpoint);
-			_CheckpointsCount += 1;
+	foreach(Checkpoint, MapLandmarks_Gauge){	
+		if(TextLib::SubText(Checkpoint.Tag, 0, 10) == "Checkpoint"){
+			ChecksRaw.add(Checkpoint);
+			CheckpointsCount += 1;
 		}
 	}
 	
 	//Reorganise
-	for(i, 1, _CheckpointsCount){
+	for(i, 1, CheckpointsCount){
 		declare CSmMapLandmark nextCheck;
 	
-		foreach(CurCheck, _ChecksRaw){
-		//First one
+		foreach(CurCheck, ChecksRaw){
+			//First one
 			if(nextCheck == Null){
-			nextCheck <=> CurCheck;
+				if(TextLib::SubText(CurCheck.Tag, 0, 10) == "Checkpoint"){
+					nextCheck <=> CurCheck;
+				}
 			} else {
-				if(CurCheck.Order < nextCheck.Order){
+				if(CurCheck.Order < nextCheck.Order && TextLib::SubText(CurCheck.Tag, 0, 10) == "Checkpoint"){
 					nextCheck <=> CurCheck;
 				}
 			}
 		}
 		
-		_Checkpoints[i] <=> nextCheck;
-		declare removed = _ChecksRaw.remove(nextCheck);
+		Checkpoints[i] <=> nextCheck;
+		declare removed = ChecksRaw.remove(nextCheck);
+	}
+	
+	//Add goal retro compatibility
+	if(Map.MapType != "CustomObstacleArena"){
+		foreach(FinishFind, MapLandmarks_Gauge){
+			if(FinishFind.Tag == "Goal"){
+				CheckpointsCount += 1;
+				Checkpoints[CheckpointsCount] <=> FinishFind;
+			}
+		}
 	}
 }
 
 Void COSpawnPlayer(CSmPlayer _Player){
 	_Player.ArmorMax = 100;
-	SpawnPlayer(_Player, 0, 100, _MainSpawn.PlayerSpawn, Now);
+	SpawnPlayer(_Player, 0, 100, MainSpawn.PlayerSpawn, Now);
+}
+
+Void CORespawnPlayer(CSmPlayer _Player){
+	if(CheckpointNext[_Player.Id] == 1){
+		UnspawnPlayer(_Player);
+		Chrono::Stop(_Player.Id);
+		CheckpointNext[_Player.Id] = 0;
+	} else {
+		RespawnPlayer(_Player, Checkpoints[CheckpointNext[_Player.Id] - 1]);
+	}
+}
+
+Void CheckpointStuff(CSmPlayer _Player){
+	Message::SendStatusMessage(_Player, "Checkpoint ! " ^ CheckpointNext[_Player.Id] ^ "/" ^ CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, 0);
+	Message::SendBigMessage(_Player, TextLib::TimeToText(Now - StartTimes[_Player.Id], True), 5000, 3, CUIConfig::EUISound::Silence, 0);
+	CheckpointNext[_Player.Id] += 1;
+	UpdateMarkerCheckpoint(_Player, False);
+}
+
+Void FinishStuff(CSmPlayer _Player){
+	UpdateMarkerCheckpoint(_Player, True);
+	UnspawnPlayer(_Player);
+	Chrono::Stop(_Player.Id);
+	CheckpointNext[_Player.Id] = 0;
+					
+	Message::SendStatusMessage(_Player, "Finish !", 2000, 3, CUIConfig::EUISound::VictoryPoint, 1);
+	Message::SendBigMessage(_Player, "Score : " ^ TextLib::TimeToText(Now - StartTimes[_Player.Id], True), 5000, 3, CUIConfig::EUISound::Silence, 0);
 }

@@ -4,10 +4,7 @@ TODO List
 
 MapType :
 - Allow goals
-- add interface to edit the type of cp (illimited rocket, no rocket).
+- Add interface to edit the type of cp (illimited rocket, no rocket).
 
 Mode :
-- Show Current Version 
-- Respawn player at last cp
-- Format time to hh:mm:ss.SS
-- make a new scriptTable to display the ranking.
+- Make a new ScriptTable to display the ranking.
