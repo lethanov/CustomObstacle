@@ -3,7 +3,7 @@
 TODO List
 
 MapType :
-- Add interface to edit the type of cp (illimited rocket, no rocket).
+edit : - Add interface to edit the type of cp (illimited rocket, no rocket and STAMINA).
 - can take rockets illimited or other weapon with player is testing map.
 - add some credits
 
