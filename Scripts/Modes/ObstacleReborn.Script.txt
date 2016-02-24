@@ -14,7 +14,7 @@
 //#Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Lethan/ChronoObs.Script.txt" as Chrono
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
-#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
+//#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 
 // ---------------------------------- //
@@ -24,7 +24,7 @@
 #Const Description _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan")
 #Const UITickPeriod 200
 
-#Const Revision 5
+#Const Revision 6
 
 // ---------------------------------- //
 // Global var
@@ -41,8 +41,10 @@ declare CSmMapLandmark[Integer] Checkpoints;
 declare Integer[Ident] StartTimes;
 declare Integer[Ident] PreviousTimes;
 declare Integer[Ident] BestTimes;
+declare Integer BestTimeTheoretical;
 
 declare Integer[Ident] CheckpointNext;
+declare Integer[Integer] CheckpointsBest;
 declare Integer[Ident] Respawns;
 
 declare Integer CheckpointsCount;
@@ -52,12 +54,12 @@ declare Integer CheckpointsCount;
 // ---------------------------------- //
 ***Rules***
 ***
-declare ModeName = "Custom Obstacle";
+declare ModeName = "Obstacle Reborn";
 declare ModeRules = TextLib::Compose(_("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan"), "$"^SpawnScreen::GetModeColor());
 SpawnScreen::ResetRulesSection();
-SpawnScreen::AddSubsection(_("Obstacle Custom GameMode"), ModeRules, 20.);
+SpawnScreen::AddSubsection(_("Obstacle Reborn GameMode"), ModeRules, 20.);
 SpawnScreen::CreatePrettyRules(ModeName);
-ModeStatusMessage = _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan");
+ModeStatusMessage = _("Obstacle Reborn GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan");
 ***
 
 // ---------------------------------- //
@@ -76,7 +78,7 @@ DebugInfo = UIManager.UILayerCreate();
 UIManager.UIAll.UILayers.add(DebugInfo);
 DebugInfo.ManialinkPage = """
 	<frame posn="-158 88 0">
-				<label posn="0 0 1" halign="left" style="TextButtonNav" text="Custom Obstacle Revision : {{{Revision}}}" />
+				<label posn="0 0 1" halign="left" style="TextButtonNav" text="Obstacle Reborn Revision : {{{Revision}}}" />
 				
 	</frame>
 """;
@@ -92,10 +94,10 @@ SpawnScreen::CreateMapInfo();
 
 // ---------------------------------- //
 // Create the scores table
-ST2::SetStyle("LibST_SMBaseSolo");
-ST2::SetStyle("LibST_SMBasePoints");
-MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
-ST2::Build("SM");
+//ST2::SetStyle("LibST_SMBaseSolo");
+//ST2::SetStyle("LibST_SMBasePoints");
+//MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+//ST2::Build("SM");
 ***
 
 
@@ -106,7 +108,7 @@ ST2::Build("SM");
 ***
 GamePhase = "init";
 
-Score::MatchBegin();
+//Score::MatchBegin();
 SM::SetupDefaultVisibility();
 Chrono::Load();
 
@@ -120,7 +122,7 @@ foreach (Base in MapBases) {
 
 
 UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
-
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
 ***
 
 // ---------------------------------- //
@@ -129,7 +131,10 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 ***PlayLoop***
 ***
 CheckForNewPlayers();
-
+DoTheoreticalStuff();
+foreach(Player, Players){
+	UpdateUI(Player);
+}
 if(GamePhase == "init"){
 	sleep(500);
 	declare Text authorMsg = "Author : " ^ Map.AuthorNickName ^ " (" ^ Map.AuthorLogin ^ ")";
@@ -149,7 +154,7 @@ if(GamePhase == "init"){
 }
 if(GamePhase == "play"){
 	//Players
-	foreach(Player, Players){	
+	foreach(Player, Players){		
 		if(StartTimes.existskey(Player.Id) && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
 			if(CheckpointNext[Player.Id] == 0){
 				COSpawnPlayer(Player);
@@ -158,7 +163,6 @@ if(GamePhase == "play"){
 		if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned) {
 			if(StartTimes.existskey(Player.Id)){
 				if(CheckpointNext[Player.Id] == 0){
-					Chrono::Reset(Player.Id);
 					Chrono::Start(Player.Id, 0);
 					StartTimes[Player.Id] = Now;
 					CheckpointNext[Player.Id] = 1;
@@ -171,15 +175,15 @@ if(GamePhase == "play"){
 		if(Player.CapturedLandmark != Null){
 			if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
 				if(CheckpointNext[Player.Id] == CheckpointsCount){
-					FinishStuff(Player);
+					FinishPass(Player);
 				}
 			}
 			if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
 				if(Player.CapturedLandmark.Order == CheckpointNext[Player.Id] && CheckpointNext[Player.Id] == CheckpointsCount){
-					FinishStuff(Player);
+					FinishPass(Player);
 				} else {
 					if(Player.CapturedLandmark.Order == CheckpointNext[Player.Id]){
-						CheckpointStuff(Player);
+						CheckpointPass(Player);
 					}
 				}
 			}			
@@ -223,7 +227,23 @@ SpawnScreen::DestroyScores();
 SpawnScreen::DestroyMapInfo();
 ***
 
+// ---------------------------------- //
 //Functions
+// ---------------------------------- //
+
+
+//Calculate Theoretical Time
+Void DoTheoreticalStuff(){
+	declare _BestTimeTheoretical = 0;
+		
+	foreach(BestCheck, CheckpointsBest){
+		_BestTimeTheoretical += BestCheck;
+	}
+		
+	BestTimeTheoretical = _BestTimeTheoretical;
+}
+
+//Update 3d markers for player
 Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 
 	declare UI <=> UIManager.GetUI(_Player); //Get UI for player
@@ -241,25 +261,88 @@ Void UpdateMarkerCheckpoint(CSmPlayer _Player, Boolean _Finish){
 		if(cpNext != CheckpointsCount){
 			UI.MarkersXML = """<marker label="CP {{{cpNext}}}{{{cpNextTime}}}" pos="{{{Checkpoints[cpNext].Position.X}}} {{{Checkpoints[cpNext].Position.Y + 2}}} {{{Checkpoints[cpNext].Position.Z}}}" />""";
 		} else {
-			UI.MarkersXML = """<marker label="Finish" pos="{{{Checkpoints[cpNext].Position.X}}} {{{Checkpoints[cpNext].Position.Y + 2}}} {{{Checkpoints[cpNext].Position.Z}}}" />""";
+			UI.MarkersXML = """<marker label="Finish{{{cpNextTime}}}" pos="{{{Checkpoints[cpNext].Position.X}}} {{{Checkpoints[cpNext].Position.Y + 2}}} {{{Checkpoints[cpNext].Position.Z}}}" />""";
 		}
 	} else {
 		UI.MarkersXML = "";
 	}
 }
 
-Void UpdateTimes(CSmPlayer _Player){
-	declare UI <=> UIManager.GetUI(_Player);
-
-	UI.ManialinkPage = """
-	<frame posn="130 -70 0" scale="0.8">
-	<quad posn="-20 1 0" sizen="60 22" bgcolor="FFFA" style="Bgs1" substyle="BgButtonGrayed"/>
-	<label posn="-17 -3 0" sizen="20 5" text="Best time" id="BestTime"/>
-	<label posn="-17 -12 0" sizen="20 5" text="Previous" id="Previous"/>
-	<label posn="22 -5 0" sizen="34 9" text="{{{TextLib::TimeToText(BestTimes[_Player.Id], True)}}}" style="TextRaceChronoWarning" textsize="5" halign="center" valign="center" id="best"/>
-	<label posn="22 -14 0" sizen="34 9" text="{{{TextLib::TimeToText(PreviousTimes[_Player.Id], True)}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="prev"/>
-</frame>
-	""";
+Void UpdateUI(CSmPlayer _Player){
+	declare Integer LastUIUpdate for _Player;
+	
+	if(Now > LastUIUpdate + UITickPeriod){
+		LastUIUpdate = Now;
+		declare UI <=> UIManager.GetUI(_Player);
+	
+		declare Text BestTimeTheoreticalText;
+		declare Text BestLastCP;
+		declare Text BestNextCP;
+		
+		declare Text BestTimePersonal;
+		declare Text PreviousTimePersonal;
+		
+		if(BestTimeTheoretical != 0){
+			BestTimeTheoreticalText = TextLib::TimeToText(BestTimeTheoretical, True);
+		} else {
+			BestTimeTheoreticalText = "--:--.--";
+		}
+		
+		if(CheckpointNext[_Player.Id] > 1){
+			if(CheckpointsBest.existskey(CheckpointNext[_Player.Id] - 1)){
+				BestLastCP = TextLib::TimeToText(CheckpointsBest[CheckpointNext[_Player.Id] - 1], True);
+			} else {
+				BestLastCP = "--:--.--";
+			}
+		} else {
+			BestLastCP = "--:--.--";
+		}
+		
+		if(CheckpointsBest.existskey(CheckpointNext[_Player.Id])){
+			BestNextCP = TextLib::TimeToText(CheckpointsBest[CheckpointNext[_Player.Id]], True);
+		} else {
+			BestNextCP = "--:--.--";			
+		}
+		
+		if(PreviousTimes[_Player.Id] != 0){
+			PreviousTimePersonal = TextLib::TimeToText(PreviousTimes[_Player.Id], True);
+		} else {
+			PreviousTimePersonal = "--:--.--";	
+		}
+		
+		if(BestTimes[_Player.Id] != 0){
+			BestTimePersonal = TextLib::TimeToText(BestTimes[_Player.Id], True);
+		} else {
+			BestTimePersonal = "--:--.--";	
+		}
+	
+		declare check = CheckpointNext[_Player.Id] - 1;
+		
+		if(check < 0) check = 0;
+	
+		UI.ManialinkPage = """
+		<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="Progress : {{{check}}}/{{{CheckpointsCount}}}"/>
+		<label posn="0 -65 0" halign="center" valign="center" style="TextButtonMedium" text="Respawns : {{{Respawns[_Player.Id]}}}"/>
+		<frame posn="130 -55 0" scale="0.8">
+		<label posn="-17 37 0" sizen="20 5" style="TextButtonMedium" text="All" id="All"/>
+		<quad posn="-20 36 0" sizen="60 33" bgcolor="FFFA" style="Bgs1" substyle="BgButtonGrayed"/>
+		<label posn="-18 30 0" sizen="22 5" text="Best time theoretical" id="BestTimeAll"/>
+		<label posn="-17 21 0" sizen="20 5" text="Last CP" id="LastCP"/>
+		<label posn="-17 12 0" sizen="20 5" text="Next CP" id="NextCP"/>
+		<label posn="22 28 0" sizen="34 9" text="$f90{{{BestTimeTheoreticalText}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="bestAll"/>
+		<label posn="22 19 0" sizen="34 9" text="$ff3{{{BestLastCP}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="lastcp"/>
+		<label posn="22 10 0" sizen="34 9" text="$619{{{BestNextCP}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="nextcp"/>
+		
+		<label posn="-17 2 0" sizen="20 5" style="TextButtonMedium" text="You" id="You"/>
+		<quad posn="-20 1 0" sizen="60 22" bgcolor="FFFA" style="Bgs1" substyle="BgButtonGrayed"/>
+		<label posn="-17 -3 0" sizen="20 5" text="Best time" id="BestTime"/>
+		<label posn="-17 -12 0" sizen="20 5" text="Previous" id="Previous"/>
+		<label posn="22 -5 0" sizen="34 9" text="$0f0{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="best"/>
+		<label posn="22 -14 0" sizen="34 9" text="$050{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="5" halign="center" valign="center" id="prev"/>
+		<label posn="-10 -24 0" sizen="20 5" style="TextButtonMedium" text="Time" id="time"/>
+	</frame>
+		""";
+	}
 }
 
 Void CheckForNewPlayers(){
@@ -272,10 +355,11 @@ Void CheckForNewPlayers(){
 			Respawns[Player.Id] = 0;
 			
 			declare Integer[Integer] CheckpointsTimes for Player;
+			declare Integer[Integer] CheckpointsDiff for Player;
+			CheckpointsDiff = Integer[Integer];
 			CheckpointsTimes = Integer[Integer];
 			
 			Chrono::Create(Player.Id);
-			UpdateTimes(Player);
 		}
 	}
 }
@@ -284,6 +368,8 @@ Void InitObstacle(){
 	CheckpointsCount = 0;
 	ChecksRaw.clear();
 	StartTimes.clear();
+	
+	CheckpointsBest = Integer[Integer];
 	
 	UIManager.UIAll.OverlayHideMapInfo = False;
 	
@@ -351,51 +437,106 @@ Void CORespawnPlayer(CSmPlayer _Player){
 }
 
 Void CheckpointStuff(CSmPlayer _Player){
+	declare Integer[Integer] CheckpointsTimes for _Player;	//Store best checks for this player
+	declare Integer[Integer] CheckpointsDiff for _Player;
+
+	declare Integer timeLastCheckpoint for _Player;
+	declare Integer timeDiffCheckpoint for _Player;
+	
+	declare Integer soundCheckpoint for _Player;
+	
+	soundCheckpoint = 2;
+	
+	//Best check player
+	if(!CheckpointsTimes.existskey(CheckpointNext[_Player.Id])){ //First run
+		CheckpointsTimes[CheckpointNext[_Player.Id]] = Now - StartTimes[_Player.Id];
+		timeLastCheckpoint = 0;
+	} else {
+		timeLastCheckpoint = (Now - StartTimes[_Player.Id]) - CheckpointsTimes[CheckpointNext[_Player.Id]];
+		soundCheckpoint = 0;
+		if(timeLastCheckpoint < 0){
+			CheckpointsTimes[CheckpointNext[_Player.Id]] = Now - StartTimes[_Player.Id];
+			soundCheckpoint = 1;
+		}
+	}
+	
+	//Best check diff
+
+	if(CheckpointNext[_Player.Id] > 1){
+		timeDiffCheckpoint = CheckpointsTimes[CheckpointNext[_Player.Id]] - CheckpointsTimes[CheckpointNext[_Player.Id] - 1];
+	} else {
+		timeDiffCheckpoint = Now - StartTimes[_Player.Id];		
+	}
+	CheckpointsDiff[CheckpointNext[_Player.Id]] = timeDiffCheckpoint;
+	
+}
+
+//When a player passes checkpoint
+Void CheckpointPass(CSmPlayer _Player){
 	
 	declare Integer[Integer] CheckpointsTimes for _Player;	//Store best checks for this player
-	declare time = Now - StartTimes[_Player.Id]; //Get the time when the player passes the checkpoint
+	declare Integer[Integer] CheckpointsDiff for _Player;
+
+	declare Integer timeLastCheckpoint for _Player;
+	declare Integer timeDiffCheckpoint for _Player;
+
+	declare Integer soundCheckpoint for _Player;
+
+	CheckpointStuff(_Player);
+
+	declare soundBestAllCheckpoint = False;
 	
-	declare lastTimeForThisCheck = 0; 
+	declare Text timeLastCheckText;
+	declare Text timeDiffCheckText;
 	
-	if(CheckpointsTimes.existskey(CheckpointNext[_Player.Id])){ //Is a time already exists ?
-		lastTimeForThisCheck = CheckpointsTimes[CheckpointNext[_Player.Id]];
-	}
-	
-	declare Integer soundCheckpoint;
-	declare Text diffPersonalText;
-	
-	diffPersonalText = "";
-	
-	if(lastTimeForThisCheck != 0){ //If value already stored
-		declare diffPersonal = time - lastTimeForThisCheck;
-		
-		if(diffPersonal < 0){ //If time is better than before
-			CheckpointsTimes[CheckpointNext[_Player.Id]] = time; //Store the new best time for this checkpoint
-			diffPersonalText = " ($00a" ^ TextLib::TimeToText(diffPersonal, True) ^ "$fff)";
-			soundCheckpoint = 3;
-		} else {
-			diffPersonalText = " ($a00+" ^ TextLib::TimeToText(diffPersonal, True) ^ "$fff)";
-			soundCheckpoint = 0;
+	timeLastCheckText = "";
+	timeDiffCheckText = "";
+
+	if(timeLastCheckpoint != 0){
+		if(timeLastCheckpoint < 0){
+			timeLastCheckText = " $fff($36f" ^ TextLib::TimeToText(timeLastCheckpoint, True) ^ "$fff)";
+		} else if(timeLastCheckpoint > 0) {
+			timeLastCheckText = " $fff($a00+" ^ TextLib::TimeToText(timeLastCheckpoint, True) ^ "$fff)";
 		}
-		
-	} else {
-		soundCheckpoint = 1;
-		CheckpointsTimes[CheckpointNext[_Player.Id]] = time; //Store the new best time for this checkpoint
 	}
 	
-	Message::SendStatusMessage(_Player, "Checkpoint : " ^ CheckpointNext[_Player.Id] ^ "/" ^ CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, soundCheckpoint);
-	Message::SendBigMessage(_Player, TextLib::TimeToText(time, True) ^ diffPersonalText, 5000, 3, CUIConfig::EUISound::Silence, 0);
+	
+
+	//Best
+	if(!CheckpointsBest.existskey(CheckpointNext[_Player.Id])){
+		CheckpointsBest[CheckpointNext[_Player.Id]] = CheckpointsDiff[CheckpointNext[_Player.Id]];
+	} else {
+		if(CheckpointsDiff[CheckpointNext[_Player.Id]] < CheckpointsBest[CheckpointNext[_Player.Id]]){
+			CheckpointsBest[CheckpointNext[_Player.Id]] = CheckpointsDiff[CheckpointNext[_Player.Id]];
+			soundBestAllCheckpoint = True;
+		}
+	}
+	
+	declare time = TextLib::TimeToText(Now - StartTimes[_Player.Id], True);
+	
+	Message::SendStatusMessage(_Player, "Checkpoint " ^ CheckpointNext[_Player.Id] ^ "/" ^ CheckpointsCount, 5000, 3, CUIConfig::EUISound::ScoreProgress, soundCheckpoint);
+		
+	if(soundBestAllCheckpoint){
+		Message::SendBigMessage(_Player, time ^ timeLastCheckText, 5000, 3, CUIConfig::EUISound::TiePoint, 0);
+	} else {
+		Message::SendBigMessage(_Player, time ^ timeLastCheckText, 5000, 3, CUIConfig::EUISound::Silence, 0);
+	}
 	
 	CheckpointNext[_Player.Id] += 1;
-	
 	UpdateMarkerCheckpoint(_Player, False);
 }
 
-Void FinishStuff(CSmPlayer _Player){
+//When a player passes finish
+Void FinishPass(CSmPlayer _Player){
+
+	declare Integer[Integer] CheckpointsDiff for _Player;
+
 	declare time = Now - StartTimes[_Player.Id];
 	declare diff = time - BestTimes[_Player.Id];	
 	declare newRecord = False;
 	declare Text diffText;
+	
+	CheckpointStuff(_Player);
 	
 	PreviousTimes[_Player.Id] = time;
 	
@@ -414,8 +555,15 @@ Void FinishStuff(CSmPlayer _Player){
 		}
 	}
 	
-	
-						
+	//Best
+	if(!CheckpointsBest.existskey(CheckpointNext[_Player.Id])){
+		CheckpointsBest[CheckpointNext[_Player.Id]] = CheckpointsDiff[CheckpointNext[_Player.Id]];
+	} else {
+		if(CheckpointsDiff[CheckpointNext[_Player.Id]] < CheckpointsBest[CheckpointNext[_Player.Id]]){
+			CheckpointsBest[CheckpointNext[_Player.Id]] = CheckpointsDiff[CheckpointNext[_Player.Id]];
+		}
+	}
+				
 	Message::SendStatusMessage(_Player, "Race completed. " ^ TextLib::ToText(Respawns[_Player.Id]) ^ " respawns." , 4000, 3, CUIConfig::EUISound::Silence, 1);
 	if(newRecord){
 		Message::SendBigMessage(_Player, "New record : " ^ TextLib::TimeToText(time, True) ^ diffText, 4000, 3, CUIConfig::EUISound::VictoryPoint, 0);
@@ -423,11 +571,11 @@ Void FinishStuff(CSmPlayer _Player){
 		Message::SendBigMessage(_Player, "Time : " ^ TextLib::TimeToText(time, True) ^ diffText, 4000, 3, CUIConfig::EUISound::EndMatch, 0);
 	}
 	
+	//Reset player
 	UpdateMarkerCheckpoint(_Player, True);
 	UnspawnPlayer(_Player);
 	Chrono::Stop(_Player.Id);
+	Chrono::Reset(_Player.Id);
 	CheckpointNext[_Player.Id] = 0;
 	Respawns[_Player.Id] = 0;
-	
-	UpdateTimes(_Player);
 }

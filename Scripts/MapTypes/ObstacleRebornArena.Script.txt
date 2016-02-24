@@ -4,6 +4,7 @@
 #Include "TextLib" as TextLib
 #Include "Libs/Nadeo/Anchor.Script.txt" as Anchor
 #Include "Libs/Nadeo/MapType.Script.txt" as MapType
+#Include "Libs/Kana/AnimationMLink.Script.txt" as AnimPos
 
 declare Text Rules;
 declare Integer LastCPUsed;
@@ -58,6 +59,7 @@ Void VerifyAnchors() {
 // Check if the map is valid
 // ---------------------------------- //
 Void UpdateValidability(){
+	ValidationStatus = CSmMapType::ValidationStatus::Validated;
 	//Verify anchors
 	VerifyAnchors();
 
@@ -118,52 +120,11 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 	declare Text AnchorOrder for ManialinkPage;
 	
 	AnchorOrder = TextLib::ToText(_Anchor.Order);
+
+	AnimPos::setRestPos(-120.0, 3.0);
+	AnimPos::animMlink_EditAnchorManialink();
 	
-	ManialinkText = 		
-	"""
-	<script><!--		
-		main() {
-			
-			declare Buttons = [(Page.GetFirstChild("checkpointOrder") as CMlEntry)];
-					
-			declare Boolean Finish for Page;
-			declare Text AnchorOrder for Page;
-			
-			Finish = False;
-			
-			foreach(Button, Buttons){
-				Button.Value = AnchorOrder;
-			}
-			
-						
-			Finish = False;	
-			while(!Finish) {
-				yield;
-				
-				foreach(Event in PendingEvents) {
-					switch(Event.Type){
-						case CMlEvent::Type::EntrySubmit : {
-							AnchorOrder = Buttons[0].Value;
-						}
-						case CMlEvent::Type::MouseClick : {
-							if (Event.ControlId == "back") {
-								AnchorOrder = Buttons[0].Value;
-								Finish = True;
-							}
-						}	
-					}
-				}
-			}
-		}			
-	--></script>
-	<frame posn="-75 -10">
-		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
-		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
-		<entry posn="-41 -10 0" sizen="14 5" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="2" textformat="default" scale="2.5" valign="center2" halign="center"/>	
-		<label posn="-40 11 0" sizen="77 26" text="Set the position (order) of the checkpoint below. (Press enter to valide changes)" valign="center" halign="center" autonewline="1"/>
-		<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
-	</frame>
-	""";
+
   
 	
 	Finish = False;
@@ -182,34 +143,8 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 // ---------------------------------- //
 Void NoEditManialink() {
 	declare Boolean Finish for ManialinkPage;
-	
-	ManialinkText = """
-		<script><!--			
-			main() {
-				declare Boolean Finish for Page;
-				Finish = False;	
-				while(!Finish) {
-					yield;
-					
-					foreach(Event in PendingEvents) {
-						switch(Event.Type){
-							case CMlEvent::Type::MouseClick : {
-								if (Event.ControlId == "back") {
-									Finish = True;
-								}
-							}	
-						}
-					}
-				}
-			}			
-		--></script>
-		<frame posn="-75 -10">
-			<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
-			<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-			<label posn="-40 11 0" sizen="77 26" text="This anchor is not editable" valign="center" halign="center" autonewline="1"/>
-			<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
-		</frame>
-	""";
+	AnimPos::setRestPos(-120.0, 3.0);
+	AnimPos::animMlink_NoEditManialink();
 	
 	Finish = False;
 	
@@ -240,22 +175,20 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 // ---------------------------------- //
 // Main
 // ---------------------------------- //
-main() {	
+main() {
 	CustomEditAnchorData = True;
 	Rules = _("You must place exactly one Spawn, at least one Checkpoint. The last Checkpoint will automatically be defined as the Goal");
 	UpdateValidability();
 	while (True) {	
 		yield;	
 		foreach (Event in PendingEvents) {
-			log("Type : " ^ Event.Type);
 			if (Event.Type == CPluginEvent::Type::MapModified) {
-				ValidationStatus = CSmMapType::ValidationStatus::Validated;
 				AutoOrderCheckpoint();
 				UpdateValidability();
 			} else if (Event.Type == CPluginEvent::Type::EditAnchor) {
 				EditAnchorData(Event.EditedAnchorDataId);
 			} else if (Event.Type == CPluginEvent::Type::StartValidation) {
-				StartTestMapWithMode("ObstacleRebornEditor.Script.txt");
+				StartTestMapWithMode("ObstacleReborn.Script.txt");
 			}
 		}
 	}	

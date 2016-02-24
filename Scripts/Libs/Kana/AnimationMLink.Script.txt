@@ -1,0 +1,160 @@
+#Const Version		"2016-02-24"
+#Const ScriptName	"AnimationMLink.Script.txt"
+
+#Include "MathLib" as MathLib
+
+// ---------------------------------- //
+// Private
+// ---------------------------------- //
+declare Real m_cursorXPosition;
+declare Real m_cursorXPositionNow;
+declare Real m_smooth;
+
+Void m_calculeCursorXPos()
+{
+  if(m_cursorXPositionNow < m_cursorXPosition) {
+  	if ((( m_cursorXPosition - m_cursorXPositionNow ) / m_smooth) > 1) {
+  		m_cursorXPositionNow += ( m_cursorXPosition - m_cursorXPositionNow ) / m_smooth;
+  	}
+  }
+  if(m_cursorXPositionNow > m_cursorXPosition) {
+  	if ((( m_cursorXPositionNow - m_cursorXPosition ) / m_smooth) > 1) {
+  		m_cursorXPositionNow -= ( m_cursorXPositionNow - m_cursorXPosition ) / m_smooth;
+  	} 
+  }
+}
+
+// ---------------------------------- //
+// Public
+// ---------------------------------- //
+Void setRestPos(Real x, Real smooth){
+	m_cursorXPosition = x;
+	m_cursorXPositionNow = x;
+	m_smooth = smooth;
+}
+Integer getPosiAnim(Real target)
+{
+	m_cursorXPosition = target;
+
+	m_calculeCursorXPos();
+
+	return MathLib::FloorInteger(m_cursorXPositionNow);
+}
+
+// ------------------ MANIALINK 1 ------------------
+declare Real positionX;
+Void diplayManialink_NoEditManialink()
+{
+	ManialinkText = """
+	<script><!--			
+		main() {
+
+			declare Boolean Finish for Page;
+			Finish = False;
+
+			while(!Finish) {
+				yield;
+				
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::MouseClick : {
+							if (Event.ControlId == "back") {
+								Finish = True;
+							}
+						}
+					}
+				}
+			}
+		}
+	--></script>
+	<frame posn="{{{getPosiAnim(-75.0)}}} -10">
+		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+		<label posn="-40 11 0" sizen="77 26" text="This anchor is not editable" valign="center" halign="center" autonewline="1"/>
+		<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
+	</frame> """;
+}
+Void animMlink_NoEditManialink()
+{
+	declare Boolean animationIsContinue = True;
+	while(animationIsContinue == True)
+	{
+		yield;
+		diplayManialink_NoEditManialink();
+		sleep(1);
+		
+		//end condition
+		if ((m_cursorXPositionNow > (m_cursorXPosition - 3)) && (m_cursorXPositionNow < (m_cursorXPosition + 3)))
+		{
+			animationIsContinue = False;
+		}
+	}
+}
+
+// ------------------ MANIALINK 2 ------------------
+Void diplayManialink_EditAnchorManialink()
+{
+	ManialinkText = 		
+	"""
+	<script><!--		
+		main() {
+			
+			declare Buttons = [(Page.GetFirstChild("checkpointOrder") as CMlEntry)];
+					
+			declare Boolean Finish for Page;
+			declare Text AnchorOrder for Page;
+			
+			Finish = False;
+			
+			foreach(Button, Buttons){
+				Button.Value = AnchorOrder;
+			}
+			
+						
+			Finish = False;	
+			while(!Finish) {
+				yield;
+				
+				foreach(Event in PendingEvents) {
+					switch(Event.Type){
+						case CMlEvent::Type::EntrySubmit : {
+							AnchorOrder = Buttons[0].Value;
+						}
+						case CMlEvent::Type::MouseClick : {
+							if (Event.ControlId == "back") {
+								AnchorOrder = Buttons[0].Value;
+								Finish = True;
+							}
+						}	
+					}
+				}
+			}
+		}			
+	--></script>
+	<frame posn="{{{getPosiAnim(-75.0)}}} -10">
+		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
+		<entry posn="-41 -10 0" sizen="14 5" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="2" textformat="default" scale="2.5" valign="center2" halign="center"/>	
+		<label posn="-40 11 0" sizen="77 26" text="Set the position (order) of the checkpoint below. (Press enter to valide changes)" valign="center" halign="center" autonewline="1"/>
+		<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
+	</frame>
+	""";
+}
+Void animMlink_EditAnchorManialink()
+{
+	declare Boolean animationIsContinue = True;
+	while(animationIsContinue == True)
+	{
+		yield;
+		diplayManialink_EditAnchorManialink();
+		sleep(1);
+		
+		//end condition
+		if ((m_cursorXPositionNow > (m_cursorXPosition - 3)) && (m_cursorXPositionNow < (m_cursorXPosition + 3)))
+		{
+			animationIsContinue = False;
+		}
+	}
+}
+
+
