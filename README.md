@@ -14,6 +14,7 @@ Mode :
 - retro compatibility with rocket illimited cps.
 - with touche delete, return on spawn bloc.
 - active multiWJ
+- add event on player request spectet
 
 CustomBloc :
 - Some block like redstone in minecraft
