@@ -19,3 +19,4 @@ Mode :
 CustomBloc :
 - Some block like redstone in minecraft
 - Block stamina, if body touch it, stamina illimided
+- add the minecraft bloc on maniapark
