@@ -13,6 +13,7 @@ Mode :
 - Show cp progress (Personal)
 - Show best cp time per cp (All players)
 - New script for editor
+- retro compatibility with rocket illimited cps.
 
 CustomBloc :
 - Some block like redstone in minecraft
