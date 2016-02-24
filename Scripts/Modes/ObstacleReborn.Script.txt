@@ -1,12 +1,12 @@
 /**
  *	Obstacle Custom GameMode
- *  Author : kana & lethan
+ *  Authors : kana & lethan
  *  Original author : steeffeen
  */
 
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const CompatibleMapTypes "ObstacleArena, ObstacleTitleArena, CustomObstacleArena"
+#Const CompatibleMapTypes "ObstacleArena, ObstacleTitleArena, ObstacleRebornArena"
 
 #Include "MathLib" as MathLib
 #Include "TextLib" as TextLib
@@ -24,12 +24,12 @@
 #Const Description _("Obstacle Custom GameMode\nOriginal Author : Steeffeen\nRework : kana & lethan")
 #Const UITickPeriod 200
 
-#Const Revision 4
+#Const Revision 5
 
 // ---------------------------------- //
 // Global var
 // ---------------------------------- //
-declare Text _GamePhase;
+declare Text GamePhase;
 
 declare CUILayer DebugInfo;
 declare CUILayer[Ident] Times;
@@ -72,7 +72,6 @@ UseAllies = False;
 UsePvPCollisions = False;
 UsePvPWeapons = False;
 
-
 DebugInfo = UIManager.UILayerCreate();
 UIManager.UIAll.UILayers.add(DebugInfo);
 DebugInfo.ManialinkPage = """
@@ -81,7 +80,6 @@ DebugInfo.ManialinkPage = """
 				
 	</frame>
 """;
-
 // ---------------------------------- //
 // Create the rules
 ---Rules---
@@ -106,9 +104,7 @@ ST2::Build("SM");
 // ---------------------------------- //
 ***StartMap***
 ***
-_GamePhase = "init";
-
-
+GamePhase = "init";
 
 Score::MatchBegin();
 SM::SetupDefaultVisibility();
@@ -134,7 +130,7 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::Intro;
 ***
 CheckForNewPlayers();
 
-if(_GamePhase == "init"){
+if(GamePhase == "init"){
 	sleep(500);
 	declare Text authorMsg = "Author : " ^ Map.AuthorNickName ^ " (" ^ Map.AuthorLogin ^ ")";
 	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
@@ -147,11 +143,11 @@ if(_GamePhase == "init"){
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 		
-	_GamePhase = "play";
+	GamePhase = "play";
 	
 	
 }
-if(_GamePhase == "play"){
+if(GamePhase == "play"){
 	//Players
 	foreach(Player, Players){	
 		if(StartTimes.existskey(Player.Id) && Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
@@ -328,7 +324,7 @@ Void InitObstacle(){
 	}
 	
 	//Add goal retro compatibility
-	if(Map.MapType != "CustomObstacleArena"){
+	if(Map.MapType != "ObstacleRebornArena"){
 		foreach(FinishFind, MapLandmarks_Gauge){
 			if(FinishFind.Tag == "Goal"){
 				CheckpointsCount += 1;

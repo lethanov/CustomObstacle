@@ -6,42 +6,61 @@
 #Include "Libs/Nadeo/MapType.Script.txt" as MapType
 
 declare Text Rules;
-declare Integer numCP_old;
+declare Integer LastCPUsed;
 
-Void InitAnchors(){
-	declare Order = 1;
-	foreach(Anchor, AnchorData) {
-		if(Anchor.DefaultTag == "Spawn"){
-			Anchor.Tag = Anchor.DefaultTag;
-			Anchor.Order = 0;
-		} else if(Anchor.DefaultTag == "Checkpoint"){
-			Anchor.Tag = Anchor.DefaultTag;
-			Anchor.Order = Order;
-			Order += 1;
-		} else if(Anchor.DefaultTag == "Goal"){
-			Anchor.Tag = Anchor.DefaultTag;
-			Anchor.Order = 0;
-		} else {
-			Anchor.Tag = "IGNORE";
-			Anchor.Order = 0;
-		}
+// ---------------------------------- //
+// Verify anchors
+// ---------------------------------- //
+Void VerifyAnchors() {
+	Anchor::UpdateAnchorCounts();
+	
+	declare Text errors;
+	
+	if (Anchor::GetCount("Goal") > 1){
+		errors ^= "- You must place exactly one Goal.\n";
+	}
+	if (Anchor::GetCount("Spawn") > 1 || Anchor::GetCount("Spawn") == 0){
+		errors ^= "- You must place exactly one Spawn.\n";
+	}
+		
+	declare Integer checkpointCount;
+	
+	foreach(Anchor, AnchorData){
+		if(Anchor.Tag == TextLib::SubText("Checkpoint", 0, 10)){
+			checkpointCount += 1;
+			if(Anchor.Order <= 0){
+				errors ^= "- At least one checkpoint got a wrong order.\n";
+				break;
+			}
+		} 
+	}
+	
+	if(checkpointCount == 0){
+		errors ^= "- You must place at least one Checkpoint.\n";
+	}
+	
+	
+	if(errors != ""){
+		ManialinkText = """
+			<frame posn="-75 35">
+				<quad posn="-80 39 0" sizen="60 24" style="Bgs1" substyle="BgHealthBar"/>
+				<label posn="-50 35 0" sizen="48 8" text="Requirements" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+				<label posn="-50 24 0" sizen="57 21" text="The map is not validable because :{{{"\n" ^ errors}}}" valign="center" halign="center" autonewline="1" textsize="1"/>
+			</frame>
+			""";
+		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
+	} else {
+		ManialinkText = "";
 	}
 }
 
 // ---------------------------------- //
 // Check if the map is valid
+// ---------------------------------- //
 Void UpdateValidability(){
-	ValidationStatus = CSmMapType::ValidationStatus::Validated;
+	//Verify anchors
+	VerifyAnchors();
 
-	Anchor::UpdateAnchorCounts(); 
-
-	if (!Anchor::HasExactlyOneAnchor("Spawn", 0, _("You must place exactly one Spawn."))){
-		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-	}
-	if (!Anchor::HasAtLeastOneAnchor("Checkpoint", 1, _("You must place at least one Checkpoint."))){
-		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-	}
-	
 	// Check checkpoint order
 	declare CheckpointOrders = Integer[Integer];
 	declare CheckpointCount = 0;
@@ -50,7 +69,7 @@ Void UpdateValidability(){
 			CheckpointCount += 1;
 			if (Anchor.Order <= 0) {
 				ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-				ValidabilityRequirementsMessage = _("At least one Checkpoint is wrong");
+				//ValidabilityRequirementsMessage = _("At least one Checkpoint is wrong");
 				return;
 			}
 			if (!CheckpointOrders.existskey(Anchor.Order)) {
@@ -63,13 +82,14 @@ Void UpdateValidability(){
 }
 
 // ---------------------------------- //
-// if a new checkpoint was added, add automaticly the next order to this cp.
-Void autoOrderCheckpoint(){
-	numCP_old = Anchor::GetCount("Checkpoint");
-	numCP_old += Anchor::GetCount("Goal");
+// If new checkpoint, add automaticly the next order to this cp.
+// ---------------------------------- //
+Void AutoOrderCheckpoint(){
+	LastCPUsed = Anchor::GetCount("Checkpoint");
+	LastCPUsed += Anchor::GetCount("Goal");
 	Anchor::UpdateAnchorCounts();
 	// if new checkpoint ?
-	if (numCP_old < (Anchor::GetCount("Checkpoint") + Anchor::GetCount("Goal")))
+	if (LastCPUsed < (Anchor::GetCount("Checkpoint") + Anchor::GetCount("Goal")))
 	{
 		// cont the max order of checkpoint
 		declare Integer maxNumberOrderCp;
@@ -92,6 +112,7 @@ Void autoOrderCheckpoint(){
 
 // ---------------------------------- //
 // Return the manialink for anchor edition
+// ---------------------------------- //
 Void EditAnchorManialink(CAnchorData _Anchor) {
 	declare Boolean Finish for ManialinkPage;
 	declare Text AnchorOrder for ManialinkPage;
@@ -158,6 +179,7 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 
 // ---------------------------------- //
 // Manialink for non editable anchor
+// ---------------------------------- //
 Void NoEditManialink() {
 	declare Boolean Finish for ManialinkPage;
 	
@@ -200,6 +222,7 @@ Void NoEditManialink() {
 
 // ---------------------------------- //
 // Show the anchor edition manialink
+// ---------------------------------- //
 Void EditAnchorData(Ident _EditedAnchorDataId) {
 
 	declare Anchor <=> AnchorData[_EditedAnchorDataId];
@@ -215,70 +238,25 @@ Void EditAnchorData(Ident _EditedAnchorDataId) {
 }
 
 // ---------------------------------- //
-// if there are more spawn than 1, display a warning message
-Void warningRuleSpawn()
-{
-	Anchor::UpdateAnchorCounts();
-	if (Anchor::GetCount("Goal") > 1 && Anchor::GetCount("Spawn") > 1)
-	{
-		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-		ManialinkText = 		
-		"""
-		<frame posn="-75 35">
-			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players and at least one Checkpoint. The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
-		</frame>
-		""";
-	}
-	else if (Anchor::GetCount("Goal") > 1)
-	{
-		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-		ManialinkText = 		
-		"""
-		<frame posn="-75 35">
-			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-			<label posn="-40 12 0" sizen="77 30" text="You must place Maximum one goal bloc. if there are not one goal bloc, The last checkpoint will automatically be defined as the Goal." valign="center" halign="center" autonewline="1" textsize="1"/>
-		</frame>
-		""";
-	}
-	else if (Anchor::GetCount("Spawn") > 1)
-	{
-		ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
-		ManialinkText = 		
-		"""
-		<frame posn="-75 35">
-			<quad posn="-80 39 0" sizen="80 44" style="Bgs1" substyle="BgHealthBar"/>
-			<label posn="-40.5 32.5 0" sizen="76 8" text="Rules" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
-			<label posn="-40 12 0" sizen="77 30" text="You must place exactly one Spawn for players." valign="center" halign="center" autonewline="1" textsize="1"/>
-		</frame>
-		""";
-	}
-	
-}
-
-// ---------------------------------- //
 // Main
 // ---------------------------------- //
 main() {	
 	CustomEditAnchorData = True;
 	Rules = _("You must place exactly one Spawn, at least one Checkpoint. The last Checkpoint will automatically be defined as the Goal");
-	InitAnchors();	
 	UpdateValidability();
 	while (True) {	
-		yield;
-		ManialinkText = "";			
+		yield;	
 		foreach (Event in PendingEvents) {
+			log("Type : " ^ Event.Type);
 			if (Event.Type == CPluginEvent::Type::MapModified) {
-				autoOrderCheckpoint();
+				ValidationStatus = CSmMapType::ValidationStatus::Validated;
+				AutoOrderCheckpoint();
 				UpdateValidability();
 			} else if (Event.Type == CPluginEvent::Type::EditAnchor) {
 				EditAnchorData(Event.EditedAnchorDataId);
 			} else if (Event.Type == CPluginEvent::Type::StartValidation) {
-				StartTestMapWithMode("CustomObstacle.Script.txt");
+				StartTestMapWithMode("ObstacleRebornEditor.Script.txt");
 			}
 		}
-		warningRuleSpawn();	
 	}	
 }
