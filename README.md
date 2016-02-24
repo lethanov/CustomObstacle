@@ -13,6 +13,7 @@ Mode :
 - New script for editor
 - retro compatibility with rocket illimited cps.
 - with touche delete, return on spawn bloc.
+- active multiWJ
 
 CustomBloc :
 - Some block like redstone in minecraft
