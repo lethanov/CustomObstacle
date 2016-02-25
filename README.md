@@ -15,6 +15,7 @@ Mode :
 - with touche delete, return on spawn bloc.
 - active multiWJ
 - add event on player request spectet
+- if respawn, don't forget to give 4 rockets of illimited if checkPoint is illimited rockets.
 
 CustomBloc :
 - Some block like redstone in minecraft
