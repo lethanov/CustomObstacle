@@ -4,20 +4,13 @@ TODO List
 
 MapType :
 - Add some credits
-- add functionality numbers of rocket for cps, if more thant 10 = illimited.
-- add functionality number of stamina illimited, if more than 5 times = illimited.
-- retro compatibility with rocket illimited cps.
+- Add functionality numbers of rocket for cps, if more thant 10 = illimited.
+- Add functionality number of stamina illimited, if more than 5 times = illimited.
 
 Mode :
 - Make a new ScriptTable to display the ranking.
 - New script for editor
-- retro compatibility with rocket illimited cps.
-- with touche delete, return on spawn bloc.
-- active multiWJ
-- add event on player request spectet
-- if respawn, don't forget to give 4 rockets of illimited if checkPoint is illimited rockets.
 
-CustomBloc :
+CustomBlocks :
 - Some block like redstone in minecraft
 - Block stamina, if body touch it, stamina illimided
-- add the minecraft bloc on maniapark

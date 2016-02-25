@@ -5,8 +5,8 @@
 #Const Version		"2013-05-24"
 #Const ScriptName	"Chrono.Script.txt"
 
-#Const C_ChronoPosX 95.
-#Const C_ChronoPosY -88.
+#Const C_ChronoPosX 0.
+#Const C_ChronoPosY -70.
 // ---------------------------------- //
 // Globales
 // ---------------------------------- //
@@ -170,7 +170,8 @@ Text CreateLayerChrono() {
 --></script>
 <frame posn="{{{C_ChronoPosX}}} {{{C_ChronoPosY}}}" id="FrameChrono">
 	<label  style="TextRaceChrono" id="Chrono" text="--:--.--"  posn="-1.49e-006 5 0" sizen="30 7" valign="center" halign="center" textsize="4"/>
-	<quad posn="0 1" sizen="36 8" halign="center" valign="bottom" style="Bgs1" substyle="BgCardList"/>
+	
+	<quad posn="0 1" sizen="36 8" halign="center" valign="bottom" style="Bgs1" substyle="BgGradV"/>
 </frame>
 </manialink>
 """;
