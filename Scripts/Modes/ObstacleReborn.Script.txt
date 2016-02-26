@@ -12,6 +12,7 @@
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
 #Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Lethan/ChronoObs.Script.txt" as Chrono
 
 
@@ -45,23 +46,29 @@ declare CUILayer G_DebugInfo;
 
 declare Text G_GamePhase;
 
+***Rules***
+***
+declare ModeName = "Obstacle Reborn";
+declare ModeRules = TextLib::Compose(_("Eliminate all bots in the map before the time is running out !\nGreen bots : Rocket\nRed bots : Nucleus\nBlue bots : Laser\nYellow bots : Arrow"), "$"^SpawnScreen::GetModeColor());
+SpawnScreen::ResetRulesSection();
+SpawnScreen::AddSubsection(_("Obstacle Reborn - Informations"), ModeRules, 20.);
+SpawnScreen::CreatePrettyRules(ModeName);
+ModeStatusMessage = _("TYPE: PvE Co-Op\nOBJECTIVE: Eliminate all bots in the map before the time is running out !\nINFOS\nGreen bots : Rocket\nRed bots : Nucleus\nBlue bots : Laser\nYellow bots : Arrow");
+***
+
 ***StartMap***
 ***
 G_GamePhase = "init";
 
 Clear();
+
+---Rules---
+
 InitObstacle();
 InitInterface();
 
-//UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
-
-ST2::SetStyle("LibST_SMBaseSolo");
-ST2::CreateCol("BestTime", "", "--:--.--", 8., 110.);
-ST2::SetColTextAlign("BestTime", CMlControl::AlignHorizontal::Right);
-MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
-ST2::Build("SM");
-
-Chrono::Load();
+SpawnScreen::CreateScores();
+SpawnScreen::CreateMapInfo();
 
 sleep(1000);
 ***
@@ -603,6 +610,15 @@ Void InitInterface(){
 					
 		</frame>
 	""";
+
+	ST2::SetStyle("LibST_SMBaseSolo");
+	ST2::CreateCol("BestTime", "", "--:--.--", 8., 110.);
+	ST2::SetColTextAlign("BestTime", CMlControl::AlignHorizontal::Right);
+	MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+	ST2::Build("SM");
+	
+	Chrono::Load();
+	SM::SetupDefaultVisibility();
 }
 
 Void InitObstacle(){
@@ -613,6 +629,8 @@ Void InitObstacle(){
 	UsePvPCollisions = False;
 	UsePvPWeapons = False;
 	UseSameWallJump = True;
+	
+	
 	
 	G_CheckpointsCount = 0;
 	
@@ -680,5 +698,10 @@ Void Clear(){
 		declare UI <=> UIManager.GetUI(Player);
 		
 		UI.ManialinkPage = "";
+		Chrono::Stop(Player.Id);
+		
 	}
+	Chrono::Unload();
+	SpawnScreen::DestroyRules();
+	SpawnScreen::DestroyMapInfo();
 }
