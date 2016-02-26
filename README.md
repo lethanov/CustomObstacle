@@ -4,6 +4,7 @@ TODO List
 
 MapType :
 - Add some credits
+- More animation about windows, and better interface of windows.
 
 Mode :
 - Make a new ScriptTable to display the ranking.
