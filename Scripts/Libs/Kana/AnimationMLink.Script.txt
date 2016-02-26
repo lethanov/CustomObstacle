@@ -107,8 +107,8 @@ Void diplayManialink_EditAnchorManialink()
 				];
 				
 			declare Buttons = [
-				(Page.GetFirstChild("Refill") as CMlLabel),
 				(Page.GetFirstChild("Normal") as CMlLabel),
+				(Page.GetFirstChild("Refill") as CMlLabel),			
 				(Page.GetFirstChild("Infinite") as CMlLabel),
 				(Page.GetFirstChild("Stamina Regeneration") as CMlLabel)
 				];
@@ -132,7 +132,7 @@ Void diplayManialink_EditAnchorManialink()
 				Stamina = TextLib::ToInteger(AnchorDetails[2]);
 				StaminaRegen = TextLib::ToInteger(AnchorDetails[3]);
 			} else {
-				Stamina = 1;
+				Stamina = 0;
 				StaminaRegen = 1;
 			}
 			
@@ -165,17 +165,17 @@ Void diplayManialink_EditAnchorManialink()
 				foreach(Event in PendingEvents) {
 					switch(Event.Type){
 						case CMlEvent::Type::MouseClick : {
-							if (Event.ControlId == "Refill") {
+							if (Event.ControlId == "Normal") {
 								Stamina = 0;
 								Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
 								Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
-								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;			
+								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
 							}
-							if (Event.ControlId == "Normal") {
+							if (Event.ControlId == "Refill") {
 								Stamina = 1;
 								Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
 								Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
-								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;			
 							}
 							if(Event.ControlId == "Infinite"){
 								Stamina = 2;
@@ -210,7 +210,7 @@ Void diplayManialink_EditAnchorManialink()
 			}
 						
 			//Values default ?
-			if(Ammo == 4 && Stamina == 1 && StaminaRegen == 1){
+			if(Ammo == 4 && Stamina == 0 && StaminaRegen == 1){
 				AnchorTag = AnchorDetails[0];
 			} else {
 				AnchorTag = AnchorDetails[0] ^ "|" ^ TextLib::ToText(Ammo) ^ "|" ^ TextLib::ToText(Stamina) ^ "|" ^ TextLib::ToText(StaminaRegen);
