@@ -27,7 +27,8 @@ Void VerifyAnchors() {
 	declare Integer checkpointCount;
 	
 	foreach(Anchor, AnchorData){
-		if(Anchor.Tag == TextLib::SubText("Checkpoint", 0, 10)){
+		
+		if(TextLib::SubText(Anchor.Tag, 0, 10) == "Checkpoint"){
 			checkpointCount += 1;
 			if(Anchor.Order <= 0){
 				errors ^= "- At least one checkpoint got a wrong order.\n";

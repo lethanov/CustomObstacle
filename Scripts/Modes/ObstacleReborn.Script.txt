@@ -1,7 +1,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "7"
+#Const Version             "9"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -18,7 +18,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 8
+#Const C_Revision 9
 
 // ---------------------------------- //
 // Globales
@@ -60,7 +60,6 @@ ST2::CreateCol("BestTime", "", "--:--.--", 8., 110.);
 ST2::SetColTextAlign("BestTime", CMlControl::AlignHorizontal::Right);
 MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
 ST2::Build("SM");
-
 
 Chrono::Load();
 
@@ -114,28 +113,36 @@ Void ChangeStamina(CSmPlayer _Player){
 			//Default
 			if(AnchorDetails.count == 1){
 				if(_Player.StaminaGain != 1.0 || G_Stamina[_Player.Id]){
-					_Player.StaminaGain = 1.0;
 					G_Stamina[_Player.Id] = False;
-					SendNotice(_Player, "$aafStamina regen set to normal.");
+					_Player.StaminaGain = 1.0;
 				}
 			} else {
 				if(TextLib::ToInteger(AnchorDetails[2]) == 2 && !G_Stamina[_Player.Id]){
-					_Player.StaminaGain = 1.0;
 					G_Stamina[_Player.Id] = True;
-					SendNotice(_Player, "$afaStamina regen set to infinite.");
+					SendNotice(_Player, "$afaInfinite stamina.");
 				}
-				if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.StaminaGain != 1.0){
-					_Player.StaminaGain = 1.0;
-					SendNotice(_Player, "$aafStamina regen set to normal.");
+				if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.Stamina < 3600){
+					SendNotice(_Player, "$aafStamina refilled.");
+					_Player.Stamina = 3600;
 					G_Stamina[_Player.Id] = False;
 				}
-				if(TextLib::ToInteger(AnchorDetails[2]) == 0 && _Player.StaminaGain != 0.0){
+				if(TextLib::ToInteger(AnchorDetails[2]) == 0 && G_Stamina[_Player.Id]){
+					G_Stamina[_Player.Id] = False;
+				}
+				if(TextLib::ToInteger(AnchorDetails[3]) == 0 && _Player.StaminaGain != 0.0){
 					_Player.StaminaGain = 0.0;
-					G_Stamina[_Player.Id] = False;
-					SendNotice(_Player, "$faaStamina regen set to none.");
+					SendNotice(_Player, "$aafNo Stamina gain.");
 				}
+				if(TextLib::ToInteger(AnchorDetails[3]) == 1 && _Player.StaminaGain != 1.0){
+					_Player.StaminaGain = 1.0;
+					SendNotice(_Player, "$aafStamina gain.");
+				}
+				
 			}
 		}
+	} else {
+		_Player.StaminaGain = 1.0;
+		G_Stamina[_Player.Id] = False;
 	}
 }
 
@@ -474,11 +481,13 @@ Void FinishEvent(CSmPlayer _Player){
 	//if first run
 	if(G_Finish[_Player.Id] == 0){
 		G_BestTimes[_Player.Id] = G_PreviousTimes[_Player.Id];
+		ST2::SetColValue("BestTime", _Player.Score, TextLib::TimeToText(G_BestTimes[_Player.Id], True));
 		diffFinalText = "";
 	} else {
 		//Check if best time
 		if(diffFinal < 0){
 			G_BestTimes[_Player.Id] = G_PreviousTimes[_Player.Id];
+			ST2::SetColValue("BestTime", _Player.Score, TextLib::TimeToText(G_BestTimes[_Player.Id], True));
 			newRecord = True;
 			
 			diffFinalText = " ($00f" ^ TextLib::TimeToText(diffFinal, True) ^ "$fff)";
@@ -590,7 +599,7 @@ Void InitInterface(){
 	UIManager.UIAll.UILayers.add(G_DebugInfo);
 	G_DebugInfo.ManialinkPage = """
 		<frame posn="-158 88 0">
-					<label posn="0 0 1" halign="left" style="TextButtonNav" text="Obstacle Reborn Revision : {{{C_Revision}}}" />
+					<label posn="0 0 1" halign="left" style="TextButtonNav" text="Obstacle Reborn Revision : {{{C_Revision}}} - Alpha release" />
 					
 		</frame>
 	""";
