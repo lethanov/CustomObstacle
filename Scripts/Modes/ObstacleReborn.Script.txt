@@ -18,7 +18,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 7
+#Const C_Revision 8
 
 // ---------------------------------- //
 // Globales
@@ -39,7 +39,7 @@ declare Integer[Ident] G_Finish;
 declare Boolean[Ident] G_Started;
 declare Boolean[Ident] G_Finished;
 
-
+declare Boolean[Ident] G_Stamina;
 
 declare CUILayer G_DebugInfo;
 
@@ -53,7 +53,14 @@ Clear();
 InitObstacle();
 InitInterface();
 
-UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+//UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+
+ST2::SetStyle("LibST_SMBaseSolo");
+ST2::CreateCol("BestTime", "", "--:--.--", 8., 110.);
+ST2::SetColTextAlign("BestTime", CMlControl::AlignHorizontal::Right);
+MB_SetScoresTableStyleFromXml(S_ScoresTableStylePath);
+ST2::Build("SM");
+
 
 Chrono::Load();
 
@@ -92,22 +99,97 @@ Clear();
 // Functions
 // ---------------------------------- //
 
-Void ChangeWeapon(CSmPlayer _Player){
+//Send Notice
+Void SendNotice(CSmPlayer _Player, Text _Message){
+	declare UI <=> UIManager.GetUI(_Player);
+	UI.SendNotice(_Message, CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Silence, 0);
+}
+
+//Change stamina
+Void ChangeStamina(CSmPlayer _Player){
 	if(_Player.CapturedLandmark != Null){
-		if(TextLib::SubText(_Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
+		declare AnchorDetails = TextLib::Split("|", _Player.CapturedLandmark.Tag);
+		
+		if(AnchorDetails[0] == "Checkpoint"){
+			//Default
+			if(AnchorDetails.count == 1){
+				if(_Player.StaminaGain != 1.0 || G_Stamina[_Player.Id]){
+					_Player.StaminaGain = 1.0;
+					G_Stamina[_Player.Id] = False;
+					SendNotice(_Player, "$aafStamina regen set to normal.");
+				}
+			} else {
+				if(TextLib::ToInteger(AnchorDetails[2]) == 2 && !G_Stamina[_Player.Id]){
+					_Player.StaminaGain = 1.0;
+					G_Stamina[_Player.Id] = True;
+					SendNotice(_Player, "$afaStamina regen set to infinite.");
+				}
+				if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.StaminaGain != 1.0){
+					_Player.StaminaGain = 1.0;
+					SendNotice(_Player, "$aafStamina regen set to normal.");
+					G_Stamina[_Player.Id] = False;
+				}
+				if(TextLib::ToInteger(AnchorDetails[2]) == 0 && _Player.StaminaGain != 0.0){
+					_Player.StaminaGain = 0.0;
+					G_Stamina[_Player.Id] = False;
+					SendNotice(_Player, "$faaStamina regen set to none.");
+				}
+			}
+		}
+	}
+}
+
+
+//Change weapon on check or spawn
+Void ChangeAmmo(CSmPlayer _Player){
+	if(_Player.CapturedLandmark != Null){
+		declare AnchorDetails = TextLib::Split("|", _Player.CapturedLandmark.Tag);
+		
+		if(AnchorDetails[0] == "Checkpoint"){
+			//Default
+			if(AnchorDetails.count == 1){
+				if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
+					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
+					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+					_Player.AmmoGain = 1.0;
+					SendNotice(_Player, "Weapon ammo set to normal.");
+				}
+			} else {
+				if(TextLib::ToInteger(AnchorDetails[1]) == 11){ //Unlimited ammo !
+					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 20){
+						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 20);
+						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 20);
+						_Player.AmmoGain = 10.0;
+						SendNotice(_Player, "Weapon ammo set to unlimited.");
+					}
+				} else {
+					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != TextLib::ToInteger(AnchorDetails[1])){
+						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+						_Player.AmmoGain = 1.0;
+						SendNotice(_Player, "Weapon ammo set to " ^ TextLib::ToInteger(AnchorDetails[1]) ^ ".");
+					}
+				}
+			}
+		} else {
 			//Retro compatibility
 			if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
 				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
 				_Player.AmmoGain = 10.0;
+				SendNotice(_Player, "Weapon ammo set to unlimited.");
 			} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
 				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
 				_Player.AmmoGain = 0.0;
-			} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
+				SendNotice(_Player, "No ammo.");
+			} 
+			//Retro + normal
+			else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
 				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
 				_Player.AmmoGain = 1.0;
+				SendNotice(_Player, "Weapon ammo set to normal.");
 			}
 		}
 	} else {
@@ -115,12 +197,15 @@ Void ChangeWeapon(CSmPlayer _Player){
 			if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1"){
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
 				_Player.AmmoGain = 0.0;
+				SendNotice(_Player, "No ammo.");
 			} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1"){
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
 				_Player.AmmoGain = 10.0;
+				SendNotice(_Player, "Weapon ammo set to unlimited.");
 			} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == ""){
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
 				_Player.AmmoGain = 1.0;
+				SendNotice(_Player, "Weapon ammo set to normal.");
 			}
 		}
 	}
@@ -129,8 +214,8 @@ Void ChangeWeapon(CSmPlayer _Player){
 //Spawn player
 Void OSpawnPlayer(CSmPlayer _Player){
 	_Player.ArmorMax = 100;
-	
-	ChangeWeapon(_Player);
+	ChangeStamina(_Player);
+	ChangeAmmo(_Player);
 	
 	SpawnPlayer(_Player, 0, 100, G_MainSpawn.PlayerSpawn, Now);
 }
@@ -153,7 +238,9 @@ Void OSRespawnPlayer(CSmPlayer _Player){
 Void UpdatePlayerInterface(CSmPlayer _Player){
 	declare UI <=> UIManager.GetUI(_Player); //Get UI for player
 	declare cpNext = G_CheckpointNext[_Player.Id]; //Get next checkpoint
-
+		
+	declare netread Boolean SwitchFullHud for UI;
+		
 	UI.MarkersXML = "";
 	
 	UI.ManialinkPage = "";
@@ -220,30 +307,66 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 
 		if(progress < 0) progress = 0;
 		
-		
 		UI.ManialinkPage = """
+			<script><!--
+			
+			declare netwrite Boolean SwitchFullHud for UI;
+						
+			while(True) {
+				yield;
+				foreach (Event in PendingEvents) {
+					switch (Event.Type) {
+						case CMlEvent::Type::KeyPress: {
+							if(Event.CharPressed == "3670016"){
+								SwitchFullHud = !SwitchFullHud;
+							}
+						}
+					}
+				}
+			}
+			
+			--></script>""";
+		
+		
+		//Show Full Hud
+		if(SwitchFullHud){
+			UI.ManialinkPage ^=	
+			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sProgress : {{{progress}}}/{{{G_CheckpointsCount}}}"/>
 			<label posn="155 -80 0" halign="right" valign="center" style="TextButtonMedium" text="$sRuns : {{{G_Finish[_Player.Id]}}}"/>
-			<label posn="155 -85 0" halign="right" valign="center" style="TextButtonMedium" text="$sRespawns : {{{G_Respawns[_Player.Id]}}}"/>
-			<!--<quad posn="162 -13" sizen="50 11" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>-->
-			<quad posn="162 -53" sizen="50 11" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
-			<!--<quad posn="162 -28" sizen="50 11" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>-->
-			<quad posn="161 -68" sizen="30 15" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
+			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sRespawns : {{{G_Respawns[_Player.Id]}}}"/>
+			<quad posn="162 -53" sizen="62 11" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
+			<quad posn="162 -68" sizen="48 15" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
 			
 			<label posn="128 -65 0" halign="center" valign="center" sizen="20 5" text="$sBest time" textsize="1" style="TextButtonMedium"/>
 			<label posn="128 -71 0" halign="center" valign="center" sizen="20 5" text="$sPrevious" textsize="1" style="TextButtonMedium"/>
 			
+			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed)}}}" style="TextRaceChrono" halign="center" valign="center"/>
+			
 			<label posn="148 -65 0" sizen="19 5" text="$0f0{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
 			<label posn="148 -71 0" sizen="19 5" text="$050{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
 			
-			<!--<label posn="157 -43 0" sizen="42 5" text="$ddd{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="right" valign="center"/>
-			<label posn="157 -28 0" sizen="42 5" text="$999{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="right" valign="center"/>-->
 			<label posn="157 -53 0" sizen="42 5" text="$f93{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			
-			<!--<label posn="121 -37 0" sizen="34 6" style="TextButtonMedium" text="$sNext Checkpoint" id="time" halign="center" valign="center"/>
-			<label posn="121 -22 0" sizen="34 6" style="TextButtonMedium" text="$sLast Checkpoint" id="time" halign="center" valign="center"/>-->
-			<label posn="121 -47 0" sizen="34 6" style="TextButtonMedium" text="$sBest Theoretical" id="time" halign="center" valign="center"/>
+			<label posn="121 -53 0" sizen="34 6" style="TextButtonMedium" text="$sBest Theoretical" id="time" halign="center" valign="center"/>
 			""";
+		} else { //Show Minimal Hud
+			UI.ManialinkPage ^=
+			"""
+			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="{{{progress}}}/{{{G_CheckpointsCount}}}"/>
+			<label posn="155 -80 0" halign="right" valign="center" style="TextButtonMedium" text="{{{G_Finish[_Player.Id]}}}"/>
+			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="{{{G_Respawns[_Player.Id]}}}"/>
+			<quad posn="162 -53" sizen="25 11" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
+			<quad posn="162 -68" sizen="25 15" halign="right" valign="center" style="Bgs1" substyle="BgGradV"/>
+			
+			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed)}}}" style="TextRaceChrono" halign="center" valign="center"/>
+			
+			<label posn="148 -65 0" sizen="19 5" text="$0f0{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="148 -71 0" sizen="19 5" text="$050{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			
+			<label posn="157 -53 0" sizen="42 5" text="$f93{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
+			""";
+		}
 	}
 }
 
@@ -293,6 +416,7 @@ Void CheckpointManage(CSmPlayer _Player){
 
 //When a player passes checkoint
 Void CheckpointEvent(CSmPlayer _Player){
+
 	declare Integer[Integer] CheckpointsTimes for _Player;
 	declare Integer[Integer] CheckpointsIntTimes for _Player;
 	
@@ -368,6 +492,8 @@ Void FinishEvent(CSmPlayer _Player){
 	} else {
 		Message::SendBigMessage(_Player, TextLib::TimeToText(Now - G_StartsTime[_Player.Id], True) ^ diffFinalText, 5000, 3, CUIConfig::EUISound::EndMatch, 0);
 	}
+	
+	//Unspawn player and stuff
 	UnspawnPlayer(_Player);
 	G_Finished[_Player.Id] = True;
 	G_Finish[_Player.Id] += 1;
@@ -375,9 +501,7 @@ Void FinishEvent(CSmPlayer _Player){
 	Chrono::Stop(_Player.Id);
 	Chrono::Reset(_Player.Id);
 	
-	declare UI <=> UIManager.GetUI(_Player);
-	
-	UI.SendNotice("Run completed.", CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Silence, 0);
+	SendNotice(_Player, "Run completed.");
 }
 
 Void UpdatePlayersObstacle(){
@@ -391,9 +515,11 @@ Void UpdatePlayersObstacle(){
 				G_Finish[Player.Id] = 0;
 				G_BestTimes[Player.Id] = 0;
 				G_PreviousTimes[Player.Id] = 0;
+				G_Stamina[Player.Id] = False;
+				
 				
 				declare Integer[Integer] CheckpointsTimes for Player;
-				
+							
 				CheckpointsTimes = Integer[Integer];
 			}
 				
@@ -411,7 +537,11 @@ Void UpdatePlayersObstacle(){
 				G_StartsTime[Player.Id] = Now;
 				Chrono::Start(Player.Id, 0);
 			}
-
+			
+			if(G_Stamina[Player.Id]){
+				Player.Stamina = 3600;
+			}
+			
 			if(Player.CapturedLandmark != Null){
 				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
 					if(G_CheckpointNext[Player.Id] == G_CheckpointsCount){
@@ -419,11 +549,12 @@ Void UpdatePlayersObstacle(){
 					}
 				}
 				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
-					ChangeWeapon(Player);
-					if(Player.CapturedLandmark.Order == G_CheckpointNext[Player.Id]){
+					if(Player.CapturedLandmark.Order == G_Checkpoints[G_CheckpointNext[Player.Id]].Order){
 						if(G_CheckpointNext[Player.Id] == G_CheckpointsCount){
 							FinishEvent(Player);
 						} else {
+							ChangeAmmo(Player);
+							ChangeStamina(Player);
 							CheckpointEvent(Player);
 						}
 					}
@@ -479,6 +610,7 @@ Void InitObstacle(){
 	declare CSmMapLandmark[] ChecksRaw;
 	
 	ChecksRaw.clear();
+	G_StartsTime = Integer[Ident];
 	
 	//Colors
 	foreach(Base, MapBases){

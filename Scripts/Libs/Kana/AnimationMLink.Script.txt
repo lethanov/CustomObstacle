@@ -96,47 +96,124 @@ Void diplayManialink_EditAnchorManialink()
 {
 	ManialinkText = 		
 	"""
-	<script><!--		
+	<script><!--
+		#Include "TextLib" as TextLib
+					
 		main() {
 			
-			declare Buttons = [(Page.GetFirstChild("checkpointOrder") as CMlEntry)];
+			declare Entries = [
+				(Page.GetFirstChild("checkpointOrder") as CMlEntry),
+				(Page.GetFirstChild("ammo") as CMlEntry)
+				];
+				
+			declare Buttons = [
+				(Page.GetFirstChild("None") as CMlLabel),
+				(Page.GetFirstChild("Normal") as CMlLabel),
+				(Page.GetFirstChild("Infinite") as CMlLabel)
+				];
 					
 			declare Boolean Finish for Page;
 			declare Text AnchorOrder for Page;
+			declare Text AnchorTag for Page;
 			
 			Finish = False;
 			
-			foreach(Button, Buttons){
-				Button.Value = AnchorOrder;
+			declare Integer Ammo;
+			declare	Integer Stamina;	
+						
+			declare AnchorDetails = TextLib::Split("|", AnchorTag);
+			
+			Entries[0].Value = AnchorOrder;
+
+			if(AnchorDetails.count > 1){
+				Entries[1].Value = AnchorDetails[1];
+				Stamina = TextLib::ToInteger(AnchorDetails[2]);
+			} else {
+				Stamina = 1;
 			}
 			
-						
+			if(Stamina == 0){
+				Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
+				Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+				Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+			}
+			if(Stamina == 1){
+				Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+				Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
+				Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+			}
+			if(Stamina == 2){
+				Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+				Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+				Buttons[2].Value = "$fff" ^ Buttons[2].ControlId;
+			}
+			
 			Finish = False;	
 			while(!Finish) {
 				yield;
 				
 				foreach(Event in PendingEvents) {
 					switch(Event.Type){
-						case CMlEvent::Type::EntrySubmit : {
-							AnchorOrder = Buttons[0].Value;
-						}
 						case CMlEvent::Type::MouseClick : {
+							if (Event.ControlId == "None") {
+								Stamina = 0;
+								Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
+								Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;			
+							}
+							if (Event.ControlId == "Normal") {
+								Stamina = 1;
+								Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+								Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
+								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+							}
+							if(Event.ControlId == "Infinite"){
+								Stamina = 2;
+								Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+								Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+								Buttons[2].Value = "$fff" ^ Buttons[2].ControlId;		
+							}
 							if (Event.ControlId == "back") {
-								AnchorOrder = Buttons[0].Value;
 								Finish = True;
 							}
 						}	
 					}
 				}
 			}
+						
+			//Check ammo value
+			Ammo = TextLib::ToInteger(Entries[1].Value);
+			if(Ammo < 0){
+				Ammo = TextLib::ToInteger(AnchorDetails[1]);
+			}
+			if(Ammo > 11){
+				Ammo = 11;
+			}
+						
+			//Values default ?
+			if(Ammo == 4 && Stamina == 1){
+				AnchorTag = AnchorDetails[0];
+			} else {
+				AnchorTag = AnchorDetails[0] ^ "|" ^ TextLib::ToText(Ammo) ^ "|" ^ TextLib::ToText(Stamina);
+			}
+			
+			AnchorOrder = Entries[0].Value;
 		}			
 	--></script>
-	<frame posn="{{{getPosiAnim(-75.0)}}} -10">
-		<quad posn="-80 39 0" sizen="80 84" style="Bgs1" substyle="BgHealthBar"/>
+	<frame posn="{{{getPosiAnim(-50.0)}}} -10">
+		<quad posn="-99 39 0" sizen="118 84" style="Bgs1" substyle="BgHealthBar"/>
+		<label id="Normal" posn="-58 -13 0" sizen="20 5" text="Normal" style="CardButtonMedium" scriptevents="1"/>
+		<label id="None" posn="-95 -13 0" sizen="20 5" text="None" style="CardButtonMedium" scriptevents="1"/>
+
+		<label id="Infinite" posn="-21 -13 0" sizen="20 5" text="Infinite" style="CardButtonMedium" scriptevents="1"/>
+		<label posn="-96 10 0" sizen="64 5" text="Ammo (0 to 10, above = unlimited)"/>
 		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
-		<entry posn="-41 -10 0" sizen="14 5" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="2" textformat="default" scale="2.5" valign="center2" halign="center"/>	
-		<label posn="-40 11 0" sizen="77 26" text="Set the position (order) of the checkpoint below. (Press enter to valide changes)" valign="center" halign="center" autonewline="1"/>
-		<label posn="-41 -30" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back"/>
+		<entry posn="14 18 0" sizen="34 7" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="1" textformat="default" valign="center2" halign="right" focusareacolor2="$f6f"/>	
+		<entry posn="14 8 0" sizen="33 7" default="4" id="ammo" style="TextButtonNavBack" scriptevents="1" textsize="1" textformat="default" valign="center2" halign="right"/>
+		
+		<label posn="-96 18 0" sizen="52 10" text="Position (order) " valign="center" halign="left" autonewline="1"/>
+		<label posn="-38 -9 0" sizen="82 10" text="Stamina Regeneration" valign="center" halign="center" autonewline="1"/>
+		<label posn="-60 -32" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back" sizen="92 9"/>
 	</frame>
 	""";
 }

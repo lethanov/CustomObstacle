@@ -117,16 +117,16 @@ Void AutoOrderCheckpoint(){
 // ---------------------------------- //
 Void EditAnchorManialink(CAnchorData _Anchor) {
 	declare Boolean Finish for ManialinkPage;
+	
+	declare Text AnchorTag for ManialinkPage;
 	declare Text AnchorOrder for ManialinkPage;
 	
+	AnchorTag = _Anchor.Tag;
 	AnchorOrder = TextLib::ToText(_Anchor.Order);
 
 	AnimPos::setRestPos(-120.0, 3.0);
 	AnimPos::animMlink_EditAnchorManialink();
-	
-
-  
-	
+		
 	Finish = False;
 	
 	while(!Finish){
@@ -134,6 +134,7 @@ Void EditAnchorManialink(CAnchorData _Anchor) {
 	}
 	
 	_Anchor.Order = TextLib::ToInteger(AnchorOrder);
+	_Anchor.Tag = AnchorTag;
 	
 	UpdateValidability();
 }
