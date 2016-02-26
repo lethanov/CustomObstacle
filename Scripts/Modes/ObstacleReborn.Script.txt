@@ -1,3 +1,10 @@
+/**
+ *	Obstacle Reborn mode
+ *  Authors : kana & lethan
+ *  Original author : steeffeen
+ */
+
+
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
@@ -49,11 +56,25 @@ declare Text G_GamePhase;
 ***Rules***
 ***
 declare ModeName = "Obstacle Reborn";
-declare ModeRules = TextLib::Compose(_("Eliminate all bots in the map before the time is running out !\nGreen bots : Rocket\nRed bots : Nucleus\nBlue bots : Laser\nYellow bots : Arrow"), "$"^SpawnScreen::GetModeColor());
+declare ModeRules = """
+Authors : Kana & Lethan
+Original Author : Steeffeen
+
+- Finish the $<$88fobstacle course$> as fast as possible.
+- To validate a race you must touch the finish after going through all the $<$88fcheckpoints$>.
+- You can start over and improve your time as often as you want.
+- You can press the I Key to switch from normal to minimal HUD.
+""";
+
 SpawnScreen::ResetRulesSection();
 SpawnScreen::AddSubsection(_("Obstacle Reborn - Informations"), ModeRules, 20.);
 SpawnScreen::CreatePrettyRules(ModeName);
-ModeStatusMessage = _("TYPE: PvE Co-Op\nOBJECTIVE: Eliminate all bots in the map before the time is running out !\nINFOS\nGreen bots : Rocket\nRed bots : Nucleus\nBlue bots : Laser\nYellow bots : Arrow");
+ModeStatusMessage = """
+- Finish the $<$88fobstacle course$> as fast as possible.
+- To validate a race you must touch the finish after going through all the $<$88fcheckpoints$>.
+- You can start over and improve your time as often as you want.
+- You can press the I Key to switch from normal to minimal HUD.
+""";
 ***
 
 ***StartMap***
