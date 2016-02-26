@@ -11,6 +11,7 @@ Mode :
 - New script for editor
 - for spec, we can see who spec you, and he can see what key is pressing.
 - change color if stamina is illimited, soud if regeneration, soud for stamina blocked, and no think if none.
+- add a sond if stamina = 0
 
 CustomBlocks :
 - Some block like redstone in minecraft
