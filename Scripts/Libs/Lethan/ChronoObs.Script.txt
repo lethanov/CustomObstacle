@@ -171,7 +171,7 @@ Text CreateLayerChrono() {
 <frame posn="{{{C_ChronoPosX}}} {{{C_ChronoPosY}}}" id="FrameChrono">
 	<label  style="TextRaceChrono" id="Chrono" text="--:--.--"  posn="-1.49e-006 5 0" sizen="30 7" valign="center" halign="center" textsize="4"/>
 	
-	<quad posn="0 1" sizen="36 8" halign="center" valign="bottom" style="Bgs1" substyle="BgGradV"/>
+	<quad posn="0 1" sizen="36 8" halign="center" valign="bottom" bgcolor="00000055"/>
 </frame>
 </manialink>
 """;
