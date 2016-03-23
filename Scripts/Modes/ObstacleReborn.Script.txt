@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "11"
+#Const Version             "12"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 11
+#Const C_Revision 12
 
 // ---------------------------------- //
 // Globales
@@ -93,7 +93,7 @@ InitInterface();
 G_GamePhase = "init";
 //declare test = Users_CreateFake("Oiseau", 0);
 //Users_DestroyAllFakes();
-//Users_SetNbFakeUsers(30, 0);
+//Users_SetNbFakeUsers(13, 0);
 InitObstacle();
 
 MB_Sleep(1); //Score sort
@@ -437,10 +437,9 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			UI.ManialinkPage ^=	
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sProgress : {{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			<label posn="-80 -82 0" halign="right" valign="center" style="TextButtonMedium" text="$sRuns : {{{G_Finish[_Player.Id]}}}"/>
-			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sRespawns : {{{G_Respawns[_Player.Id]}}}"/>
+			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
 			
-			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed)}}}" style="TextRaceChrono" halign="center" valign="center"/>
+			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
 			
 			<frame posn="0 -12 0">
 			
@@ -448,42 +447,41 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<quad posn="162 -68" sizen="48 14" halign="right" valign="center" bgcolor="00000055"/>
 			<label posn="128 -65 0" halign="center" valign="center" sizen="20 5" text="$sBest time" textsize="1" style="TextButtonMedium"/>
 			<label posn="128 -71 0" halign="center" valign="center" sizen="20 5" text="$sPrevious" textsize="1" style="TextButtonMedium"/>
-			<label posn="148 -65 0" sizen="19 5" text="$0f0{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			<label posn="148 -71 0" sizen="19 5" text="$050{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="148 -65 0" sizen="19 5" text="$C33{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="148 -71 0" sizen="19 5" text="$C30{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
 			
 			<quad posn="162 -53" sizen="62 10" halign="right" valign="center" bgcolor="00000055"/>
 			<label posn="121 -53 0" sizen="34 6" style="TextButtonMedium" text="$sBest Theoretical" id="time" halign="center" valign="center"/>			
-			<label posn="157 -53 0" sizen="42 5" text="$f93{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
+			<label posn="157 -53 0" sizen="42 5" text="$66f{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			
 			<quad posn="162 -40" sizen="62 10" halign="right" valign="center" bgcolor="00000055"/>
 			<label posn="121 -40 0" sizen="34 6" style="TextButtonMedium" text="$s(All) Best Theoretical" id="time" halign="center" valign="center"/>			
-			<label posn="157 -40 0" sizen="42 5" text="$60C{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
+			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>			
 			""";
 		} else { //Show Minimal Hud
 			UI.ManialinkPage ^=
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			<label posn="-80 -82 0" halign="right" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}}"/>
-			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Respawns[_Player.Id]}}}"/>
+			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
 			
-			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed)}}}" style="TextRaceChrono" halign="center" valign="center"/>
+			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
 			
 			<frame posn="0 -12 0">
 			
 			
 			<quad posn="162 -68" sizen="24 14" halign="right" valign="center" bgcolor="00000055"/>
 			
-			<label posn="148 -65 0" sizen="19 5" text="$0f0{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			<label posn="148 -71 0" sizen="19 5" text="$050{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="148 -65 0" sizen="19 5" text="$C33{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="148 -71 0" sizen="19 5" text="$C30{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
 			
 			<quad posn="162 -53" sizen="28 10" halign="right" valign="center" bgcolor="00000055"/>
 		
-			<label posn="157 -53 0" sizen="42 5" text="$f93{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
+			<label posn="157 -53 0" sizen="42 5" text="$66f{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			
 			<quad posn="162 -40" sizen="28 10" halign="right" valign="center" bgcolor="00000055"/>
 		
-			<label posn="157 -40 0" sizen="42 5" text="$60C{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
+			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>
 			""";
 		}
@@ -593,36 +591,45 @@ Void CheckpointEvent(CSmPlayer _Player){
 }
 
 Void UpdateScoresTable(){
-	foreach(_Player, Players){
-		declare UI <=> UIManager.GetUI(_Player);
+	
+	declare netwrite Text[] G_PlayersScoresTimes for Teams[0];
 
-		declare netread Integer currentPage for UI;
-		declare netwrite Text[] PlayersScoresTimes for UI;
+	declare Integer[] Times;
+	declare CSmPlayer[] PlayerList;
+	
+	G_PlayersScoresTimes.clear();
+	Times.clear();
+	PlayerList.clear();
 
-		PlayersScoresTimes.clear();
+	foreach(Time, G_BestTimes){
+		Times.add(Time);
+	}
 
-		G_BestTimes = G_BestTimes.sort();
+	foreach(Player, Players){
+		PlayerList.add(Player);
+	}
 
-		//Time players
-		foreach(Player, Players){
-			if(G_BestTimes.existskey(Player.Id)){
-				if(G_BestTimes[Player.Id] != -1){
-					declare temp = Player.Login ^ "|" ^ Player.Name ^ "|" ^ G_BestTimes[Player.Id];
-					if(!PlayersScoresTimes.exists(temp)){
-						PlayersScoresTimes.add(temp);	
-					}
+	Times = Times.sort();
+	
+	//Players finished
+	foreach(Time, Times){
+		foreach(Player, PlayerList){
+			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time != -1){
+				declare temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
+				if(!G_PlayersScoresTimes.exists(temp)){
+					G_PlayersScoresTimes.add(temp);	
 				}
 			}
 		}
-
-		//NoTime players
-		foreach(Player, Players){
-			if(G_BestTimes.existskey(Player.Id)){
-				if(G_BestTimes[Player.Id] == -1){
-					declare temp = Player.Login ^ "|" ^ Player.Name ^ "|" ^ G_BestTimes[Player.Id];
-					if(!PlayersScoresTimes.exists(temp)){
-						PlayersScoresTimes.add(temp);	
-					}
+	}
+	
+	//Players not finished
+	foreach(Time, Times){
+		foreach(Player, PlayerList){
+			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time == -1){
+				declare temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
+				if(!G_PlayersScoresTimes.exists(temp)){
+					G_PlayersScoresTimes.add(temp);	
 				}
 			}
 		}
@@ -733,67 +740,144 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("time7") as CMlLabel)
 			];
 		
-		declare netread Text[] PlayersScoresTimes for UI;
+		declare netread Text[] G_PlayersScoresTimes for Teams[0];
 
 		declare netwrite currentPage for UI = 0;
 
+		if(currentPage > {{{AllPlayers.count/7}}}){
+			currentPage = 0;
+		}
+
 		while (True) {
-			
+			declare firstTime = 0;
 			if({{{AllPlayers.count}}} > 7){
-				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText({{{(AllPlayers.count/7)}}}+1);
+				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText({{{(AllPlayers.count/7)}}});
 			} else {
 				Labels[0].Value = "";
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 0)){
-				Labels[1].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7])[1];
-				LabelsTime[0].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 0)){
+				Labels[1].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[0]);
+				firstTime = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[0])[0]);
+				LabelsTime[0].Value = TextLib::TimeToText(time, True);
+				if(currentPage == 0){
+					if(time != -1){
+						LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;
+					} else {
+						LabelsTime[0].Value = "--:--.--";
+					}
+				} else {
+					if(time != -1){
+						LabelsTime[0].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 - 1])[0]), True) ^ ")$FFF " ^ LabelsTime[0].Value;	
+					} else {
+						LabelsTime[0].Value = "--:--.--";
+					}
+				}
 			} else {
 				Labels[1].Value = "No Player";
 				LabelsTime[0].Value = "--:--.--";
+				if(currentPage == 0){
+					LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;
+				}
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 1)){
-				Labels[2].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 1])[1];
-				LabelsTime[1].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 1])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 1)){
+				Labels[2].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[0]);
+				LabelsTime[1].Value = TextLib::TimeToText(time, True);
+				if(currentPage == 0){
+					LabelsTime[1].Value = "$666" ^ LabelsTime[1].Value;
+				}
+				if(time != -1){
+					LabelsTime[1].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[0]), True) ^ ")$z " ^ LabelsTime[1].Value;
+				} else {
+						LabelsTime[1].Value = "--:--.--";
+				}
 			} else {
 				Labels[2].Value = "No Player";
 				LabelsTime[1].Value = "--:--.--";
+				if(currentPage == 0){
+					LabelsTime[1].Value = "$666" ^ LabelsTime[1].Value;
+				}
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 2)){
-				Labels[3].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 2])[1];
-				LabelsTime[2].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 2])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 2)){
+				Labels[3].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[0]);
+				LabelsTime[2].Value = TextLib::TimeToText(time, True);
+				if(currentPage == 0){
+					LabelsTime[2].Value = "$960" ^ LabelsTime[2].Value;
+				}
+				if(time != -1){
+					LabelsTime[2].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[0]), True) ^ ")$z " ^ LabelsTime[2].Value;
+				} else {
+					LabelsTime[2].Value = "--:--.--";
+				}
 			} else {
 				Labels[3].Value = "No Player";
 				LabelsTime[2].Value = "--:--.--";
+				if(currentPage == 0){
+					LabelsTime[2].Value = "$960" ^ LabelsTime[2].Value;
+				}
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 3)){
-				Labels[4].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 3])[1];
-				LabelsTime[3].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 3])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 3)){
+				Labels[4].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[0]);
+				LabelsTime[3].Value = TextLib::TimeToText(time, True);
+				if(time != -1){
+					LabelsTime[3].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[0]), True) ^ ")$z " ^ LabelsTime[3].Value;
+				} else {
+					LabelsTime[3].Value = "--:--.--";
+				}
 			} else {
 				Labels[4].Value = "No Player";
 				LabelsTime[3].Value = "--:--.--";
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 4)){
-				Labels[5].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 4])[1];
-				LabelsTime[4].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 4])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 4)){
+				Labels[5].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[0]);
+				LabelsTime[4].Value = TextLib::TimeToText(time, True);
+				if(time != -1) {
+					LabelsTime[4].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[0]), True) ^ ")$z " ^ LabelsTime[4].Value;
+				} else {
+					LabelsTime[4].Value = "--:--.--";
+				}
 			} else {
 				Labels[5].Value = "No Player";
 				LabelsTime[4].Value = "--:--.--";
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 5)){
-				Labels[6].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 5])[1];
-				LabelsTime[5].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 5])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 5)){
+				Labels[6].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[0]);
+				LabelsTime[5].Value = TextLib::TimeToText(time, True);
+				if(time != -1){
+					LabelsTime[5].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[0]), True) ^ ")$z " ^ LabelsTime[5].Value;
+				} else {
+					LabelsTime[5].Value = "--:--.--";
+				}
 			} else {
 				Labels[6].Value = "No Player";
 				LabelsTime[5].Value = "--:--.--";
 			}
-			if(PlayersScoresTimes.existskey(currentPage * 7 + 6)){
-				Labels[7].Value = TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 6])[1];
-				LabelsTime[6].Value = TextLib::TimeToText(TextLib::ToInteger(TextLib::Split("|", PlayersScoresTimes[currentPage * 7 + 6])[2]), True);
+
+			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 6)){
+				Labels[7].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[0]);
+				LabelsTime[6].Value = TextLib::TimeToText(time, True);
+				if(time != -1){
+					LabelsTime[6].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[0]), True) ^ ")$z " ^ LabelsTime[6].Value;
+				} else {
+					LabelsTime[6].Value = "--:--.--";
+				}
 			} else {
 				Labels[7].Value = "No Player";
 				LabelsTime[6].Value = "--:--.--";
 			}
-			
+
 			// Process events
 			foreach (Event in PendingEvents) {
 				switch(Event.Type){
@@ -805,7 +889,7 @@ Text CreateScoresTable(){
 
 						}
 						if(Event.ControlId == "next"){
-							if(currentPage < {{{(AllPlayers.count/7)}}}){
+							if(currentPage < {{{(AllPlayers.count/7)}}}- 1){
 								currentPage += 1;
 							}
 						}
@@ -815,55 +899,56 @@ Text CreateScoresTable(){
 			yield;
 		}
 		--></script>
-		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="Obstacle Reborn Revision : {{{C_Revision}}}" />
+		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
+		<label posn="-75 31 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
+		<label posn="-55 32 1" sizen="133 7" text="on {{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="2" valign="bottom"/>
 		<label posn="-159 82 0" sizen="104 5" autonewline="1" text="Press F3 to show/hide full HUD" textsize="1"/>
 		<!--<label posn="-159 78 0" sizen="104 5" autonewline="1" text="Press F4 to show your stats" textsize="1"/>-->
-
 		<quad posn="0 -10 0" sizen="160 100" bgcolor="101010AA" halign="center" valign="center"/>
 		<label posn="-76 37 1" sizen="33 7" text="Times" style="TextTitle3" textsize="4"/>
-		<label posn="-75 24 1" sizen="93 5" text="NickName" valign="center" halign="left"/>
-		<label posn="73 24 1" sizen="93 5" text="Time" valign="center" halign="right"/>
+		<label posn="-75 24 1" sizen="93 5" text="NickName" valign="center" halign="left" textsize="2"/>
+		<label posn="73 24 1" sizen="93 5" text="Time" valign="center" halign="right" textsize="2"/>
 		<frame posn="-10 25 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="1" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time1" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
+			<label id="1" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time1" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 15 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="2" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time2" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="111111C6" halign="center" valign="center"/>
+			<label id="2" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time2" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 5 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="3" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time3" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
+			<label id="3" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time3" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 -5 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="4" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time4" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="111111C6" halign="center" valign="center"/>
+			<label id="4" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time4" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 -15 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="5" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time5" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
+			<label id="5" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time5" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 -25 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="6" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time6" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="111111C6" halign="center" valign="center"/>
+			<label id="6" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time6" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
 		<frame posn="-10 -35 1">
-		<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
-		<label id="7" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
-		<label id="time7" posn="85 -8 0" sizen="20 5" text="--:--.--" style="TextRaceChrono" textsize="3" halign="right"/>
+			<quad posn="10 -10 0" sizen="156 10" bgcolor="000000C6" halign="center" valign="center"/>
+			<label id="7" posn="-65 -10 0" sizen="93 5" text="No player" valign="center" halign="left"/>
+			<label id="time7" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
 		</frame>
-		<label id="currentPage" posn="0 -55 1" sizen="20 5" text="[currentPage]" valign="center" halign="center"/>
-	
-		<quad id="next" posn="72 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
-		<quad id="prev" posn="67 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
+		<quad posn="72 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
+		<quad posn="67 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
+		<label id="currentPage" posn="0 -55 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
+		<label posn="-77 -54 1" sizen="58 5" text="Players : {{{Players.count}}}" textsize="2"/>
 		""";
-			
+
 	return Manialink;
 }
 
