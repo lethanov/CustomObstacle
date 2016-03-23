@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "12"
+#Const Version             "13"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 12
+#Const C_Revision 13
 
 // ---------------------------------- //
 // Globales
@@ -50,6 +50,7 @@ declare Boolean[Ident] G_Stamina;
 
 declare CUILayer G_UIEventManager;
 declare CUILayer G_ScoresTable;
+declare CUILayer G_OptionsMenu;
 
 declare Text G_GamePhase;
 
@@ -63,7 +64,6 @@ Original Author : Steeffeen
 - Finish the $<$88fobstacle course$> as fast as possible.
 - To validate a race you must touch the finish after going through all the $<$88fcheckpoints$>.
 - You can start over and improve your time as often as you want.
-- You can press the F3 Key to switch from normal to minimal HUD.
 """;
 
 SpawnScreen::ResetRulesSection();
@@ -73,7 +73,6 @@ ModeStatusMessage = """
 - Finish the $<$88fobstacle course$> as fast as possible.
 - To validate a race you must touch the finish after going through all the $<$88fcheckpoints$>.
 - You can start over and improve your time as often as you want.
-- You can press the F3 Key to switch from normal to minimal HUD.
 """;
 ***
 
@@ -306,9 +305,12 @@ Void OSpawnPlayer(CSmPlayer _Player){
 Void RestartPlayer(CSmPlayer _Player, Boolean _TrueRestart){
 	if(!_TrueRestart){
 		if(G_CheckpointNext[_Player.Id] > 1){
-			RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);
+			declare UI <=> UIManager.GetUI(_Player);
+			
+			RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
 			G_Respawns[_Player.Id] += 1;
 		} else {
+
 			OSpawnPlayer(_Player);
 			Chrono::Stop(_Player.Id);
 			G_CheckpointNext[_Player.Id] = 0;
@@ -318,7 +320,6 @@ Void RestartPlayer(CSmPlayer _Player, Boolean _TrueRestart){
 		}
 		return;
 	}
-		
 	OSpawnPlayer(_Player);
 	Chrono::Stop(_Player.Id);
 	G_CheckpointNext[_Player.Id] = 0;
@@ -411,30 +412,9 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 
 		if(progress < 0) progress = 0;
 		
-		UI.ManialinkPage = """
-			<script><!--
-			
-			declare netwrite Boolean SwitchFullHud for UI;
-						
-			while(True) {
-				yield;
-				foreach (Event in PendingEvents) {
-					switch (Event.Type) {
-						case CMlEvent::Type::KeyPress: {
-							if(Event.KeyName == "F3"){
-								SwitchFullHud = !SwitchFullHud;
-							}
-						}
-					}
-				}
-			}
-			
-			--></script>""";
-		
-		
 		//Show Full Hud
 		if(SwitchFullHud){
-			UI.ManialinkPage ^=	
+			UI.ManialinkPage =	
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sProgress : {{{progress}}}/{{{G_CheckpointsCount}}}"/>
 			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
@@ -460,7 +440,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			</frame>			
 			""";
 		} else { //Show Minimal Hud
-			UI.ManialinkPage ^=
+			UI.ManialinkPage =
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{progress}}}/{{{G_CheckpointsCount}}}"/>
 			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
@@ -688,8 +668,14 @@ Void FinishEvent(CSmPlayer _Player){
 Text CreateUIEventManager(){
 	declare Manialink = """
 		<script><!--
+
 		declare netwrite RespawnTime for UI = 0;
 		declare netwrite RestartTime for UI = 0;
+
+		declare netwrite Text RestartKey for UI;
+		declare netwrite Text RespawnKey for UI;
+
+		declare netwrite ShowOptionsMenu for UI = 0;
 
 		while (True) {
 			yield;
@@ -697,11 +683,18 @@ Text CreateUIEventManager(){
 			foreach (Event in PendingEvents) {
 				switch (Event.Type) {
 					case CMlEvent::Type::KeyPress: {
-						if(Event.KeyName == "Back"){
-							RespawnTime = ArenaNow;
+						if(ShowOptionsMenu == 0){
+							if(Event.KeyName == RespawnKey){
+								RespawnTime = ArenaNow;
+							}
+							if(Event.KeyName == RestartKey){
+								RestartTime = ArenaNow;
+							}
 						}
-						if(Event.KeyName == "Delete"){
-							RestartTime = ArenaNow;
+					}
+					case CMlEvent::Type::MouseClick: {
+						if(Event.ControlId == "closeOptionsMenu"){
+							ShowOptionsMenu = 0;
 						}
 					}
 				}
@@ -718,6 +711,7 @@ Text CreateScoresTable(){
 
 		#Include "TextLib" as TextLib
 		
+
 		declare Buttons = [(Page.GetFirstChild("prev") as CMlQuad), (Page.GetFirstChild("next") as CMlQuad)];
 		declare Labels = [
 			(Page.GetFirstChild("currentPage") as CMlLabel),
@@ -740,15 +734,24 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("time7") as CMlLabel)
 			];
 		
+		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
+
 		declare netread Text[] G_PlayersScoresTimes for Teams[0];
 
 		declare netwrite currentPage for UI = 0;
+		declare netwrite ShowOptionsMenu for UI = 0;
 
 		if(currentPage > {{{AllPlayers.count/7}}}){
 			currentPage = 0;
 		}
 
 		while (True) {
+
+			if(ShowOptionsMenu == 0){
+				LabelOptionsMenu[0].Visible = True;
+			} else {
+				LabelOptionsMenu[0].Visible = False;
+			}
 			declare firstTime = 0;
 			if({{{AllPlayers.count}}} > 7){
 				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText({{{(AllPlayers.count/7)}}});
@@ -893,6 +896,13 @@ Text CreateScoresTable(){
 								currentPage += 1;
 							}
 						}
+						if(Event.ControlId == "showOptionsMenu"){
+							if(ShowOptionsMenu == 0){
+								ShowOptionsMenu = 1;
+							} else {
+								ShowOptionsMenu = 0;
+							}
+						}
 					}
 				}
 			}
@@ -902,8 +912,7 @@ Text CreateScoresTable(){
 		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
 		<label posn="-75 31 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
 		<label posn="-55 32 1" sizen="133 7" text="on {{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="2" valign="bottom"/>
-		<label posn="-159 82 0" sizen="104 5" autonewline="1" text="Press F3 to show/hide full HUD" textsize="1"/>
-		<!--<label posn="-159 78 0" sizen="104 5" autonewline="1" text="Press F4 to show your stats" textsize="1"/>-->
+		<label id="showOptionsMenu" posn="-159 82 0" sizen="66 10" autonewline="1" text="Click here to Show Options Menu" textsize="2" scriptevents="1" style="TextTitle2Blink"/>
 		<quad posn="0 -10 0" sizen="160 100" bgcolor="101010AA" halign="center" valign="center"/>
 		<label posn="-76 37 1" sizen="33 7" text="Times" style="TextTitle3" textsize="4"/>
 		<label posn="-75 24 1" sizen="93 5" text="NickName" valign="center" halign="left" textsize="2"/>
@@ -952,6 +961,105 @@ Text CreateScoresTable(){
 	return Manialink;
 }
 
+Void CreateUIOptionsMenu(){
+	
+	G_OptionsMenu.ManialinkPage = """
+		<script><!--
+
+		declare netwrite ShowOptionsMenu for UI = 0;
+
+		declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame)];
+
+		declare Labels = [
+			(Page.GetFirstChild("restartKey") as CMlLabel),
+			(Page.GetFirstChild("respawnKey") as CMlLabel),
+			(Page.GetFirstChild("showHud") as CMlLabel)
+		];
+
+		declare netwrite RestartKey for UI = "Delete";
+		declare netwrite RespawnKey for UI = "Back";
+		declare netwrite SwitchFullHud for UI = False;
+
+		declare netwrite RestartKeyEdit for UI = False;
+		declare netwrite RespawnKeyEdit for UI = False;
+
+		if(SwitchFullHud){
+			Labels[2].Value = "Yes";
+		} else {
+			Labels[2].Value = "No";
+		}
+
+		
+
+		while (True) {
+			if(Frame[0].Visible && ShowOptionsMenu == 0){
+				Frame[0].Visible = False;
+			}
+			if(!Frame[0].Visible && ShowOptionsMenu == 1){
+				Frame[0].Visible = True;
+			}
+			if(RestartKeyEdit){
+				Labels[0].Value = "Press new key";
+			} else {
+				Labels[0].Value = RestartKey;		
+			}
+			if(RespawnKeyEdit){
+				Labels[1].Value = "Press new key";
+			} else {
+				Labels[1].Value = RespawnKey;	
+			}
+			
+			yield;
+			// Process events
+			foreach (Event in PendingEvents) {
+				switch (Event.Type) {
+					case CMlEvent::Type::MouseClick: {
+						if(Event.ControlId == "closeOptionsMenu"){
+							ShowOptionsMenu = 0;
+						}
+						
+						if(Event.ControlId == "showHud"){
+							SwitchFullHud = !SwitchFullHud;
+							if(SwitchFullHud){
+								Labels[2].Value = "Yes";
+							} else {
+								Labels[2].Value = "No";
+							}
+						}
+						if(Event.ControlId == "restartKey"){
+							RestartKeyEdit = True;
+						}
+						if(Event.ControlId == "respawnKey"){
+							RespawnKeyEdit = True;
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(RestartKeyEdit){
+							RestartKey = Event.KeyName;
+							RestartKeyEdit = False;
+						}
+						if(RespawnKeyEdit){
+							RespawnKey = Event.KeyName;
+							RespawnKeyEdit = False;
+						}
+					}
+				}
+			}
+		}
+		--></script>
+		<frame id="OptionsMenu">	
+		<quad posn="-160 78 0" sizen="75 98" bgcolor="000000C6"/>
+		<label posn="-158 76 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3"/>
+		<label posn="-157 67 1" sizen="69 5" text="Restart key" textsize="2"/>
+		<label posn="-150 62 1" sizen="20 5" text="BackSpace" style="CardButtonMediumXL" scriptevents="1" id="restartKey"/>
+		<label posn="-157 50 1" sizen="69 5" text="Respawn key" textsize="2"/>
+		<label posn="-150 45 1" sizen="20 5" text="Suppr" style="CardButtonMediumXL" scriptevents="1" id="respawnKey"/>
+		<label posn="-157 33 1" sizen="69 5" text="Show Full Hud" textsize="2"/>
+		<label posn="-150 28 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
+		<label posn="-161 -7 2" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+		</frame>
+	""";
+}
 
 Void InitInterface(){
 
@@ -966,6 +1074,11 @@ Void InitInterface(){
 	G_ScoresTable.Type = CUILayer::EUILayerType::ScoresTable;
 	UIManager.UIAll.UILayers.add(G_ScoresTable);
 	
+	G_OptionsMenu = UIManager.UILayerCreate();
+	//G_OptionsMenu.Type = CUILayer::EUILayerType::ScoresTable;
+	CreateUIOptionsMenu();
+	UIManager.UIAll.UILayers.add(G_OptionsMenu);
+
 	Chrono::Load();
 }
 
