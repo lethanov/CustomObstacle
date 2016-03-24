@@ -11,7 +11,6 @@ Features :
 TODO List
 
 Mode :
-- [HIGH] Allow player to show Checkpoints times diff between personnal and/or all players
 - [MID] New script for editor
 - [LOW] For spec, we can see who spec you, and he can see what key is pressing. /!\ Heavy resources use /!\
 - [LOW] change color if stamina is illimited, soud if regeneration, soud for stamina blocked, and no think if none.
