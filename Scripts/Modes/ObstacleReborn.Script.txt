@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "14"
+#Const Version             "15"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 14
+#Const C_Revision 15
 
 // ---------------------------------- //
 // Globales
@@ -149,7 +149,8 @@ UpdateScoresTable();
 ***
 foreach(Player, Players){
 	declare UI <=> UIManager.GetUI(Player);
-	
+	G_BestTimes[Player.Id] = -1;
+	G_PreviousTimes[Player.Id] = 0;
 	UI.ManialinkPage = "";
 	UI.MarkersXML = "";
 	Chrono::Stop(Player.Id);
@@ -337,6 +338,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 	declare cpNext = G_CheckpointNext[_Player.Id]; //Get next checkpoint
 		
 	declare netread Boolean SwitchFullHud for UI;
+	declare netread Boolean SwitchExtraHud for UI;
 	
 	//Force spectate someone
 	declare netread Text SpecTarget for UI;
@@ -419,14 +421,13 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 		}
 		
 		if(G_Finish[_Player.Id] != 0 && G_CheckpointNext[_Player.Id] != 0 && CheckpointsTimes[G_CheckpointNext[_Player.Id]] != 0){
-
-			NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]],True) ^ " - [" ^ TextLib::TimeToText(CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]], True) ^ "]";
+			NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True);
 		} else {
 			NextCheckPersonal = "--:--,--";
 		}
 		
 		if(G_CheckpointNext[_Player.Id] > 1){
-			PreviousCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1],True) ^ " - [" ^ TextLib::TimeToText(CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id] - 1], True) ^ "]";
+			PreviousCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1], True);
 		} else {
 			PreviousCheckPersonal = "--:--,--";
 		}
@@ -499,6 +500,18 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			</frame>
 			""";
 		}
+
+		if(SwitchExtraHud){
+			UI.ManialinkPage ^=
+			"""
+			<quad posn="-40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
+			<quad posn="40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
+			<label posn="-50 -61 0" sizen="34 6" style="TextButtonMedium" text="$sLast (ALL)" id="time" halign="center" valign="center"/>
+			<label posn="30 -61 0" sizen="34 6" style="TextButtonMedium" text="$sNext (ALL)" id="time" halign="center" valign="center"/>			
+			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="4" halign="center" valign="center"/>
+			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="4" halign="center" valign="center"/>
+			""";
+		}
 	}
 }
 
@@ -506,10 +519,13 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 Void UpdateScoresTable(){
 	
 	declare netwrite Text[] G_PlayersScoresTimes for Teams[0];
+	declare netwrite Text[Text] Net_Checkpoints for Teams[0];
 
 	declare Integer[] Times;
 	declare CSmPlayer[] PlayerList;
 	
+	Net_Checkpoints.clear();
+
 	G_PlayersScoresTimes.clear();
 	Times.clear();
 	PlayerList.clear();
@@ -519,6 +535,15 @@ Void UpdateScoresTable(){
 	}
 
 	foreach(Player, Players){
+		if(G_CheckpointNext.existskey(Player.Id)){
+			if(G_CheckpointNext[Player.Id] > 1 && G_CheckpointNext[Player.Id] - 1 < G_CheckpointsCount){
+				Net_Checkpoints[Player.Login] = TextLib::ToText(G_CheckpointNext[Player.Id] - 1);
+			} else {
+				Net_Checkpoints[Player.Login] = "N/A";
+			}
+		} else {
+			Net_Checkpoints[Player.Login] = "N/A";
+		}
 		PlayerList.add(Player);
 	}
 
@@ -529,7 +554,7 @@ Void UpdateScoresTable(){
 		foreach(Player, PlayerList){
 			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time != -1){
 				declare Text temp;
-				temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name ^ "|N/A";
+				temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
 				if(!G_PlayersScoresTimes.exists(temp)){
 					G_PlayersScoresTimes.add(temp);	
 				}
@@ -542,15 +567,7 @@ Void UpdateScoresTable(){
 		foreach(Player, PlayerList){
 			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time == -1){
 				declare Text temp;
-				if(G_CheckpointNext.existskey(Player.Id)){
-					if(G_CheckpointNext[Player.Id] != G_CheckpointsCount){
-						temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name ^ "|" ^ TextLib::ToText(G_CheckpointNext[Player.Id]);
-					} else {
-						temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name ^ "|N/A";
-					}
-				} else {
-					temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name ^ "|N/A";
-				}
+				temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
 				if(!G_PlayersScoresTimes.exists(temp)){
 					G_PlayersScoresTimes.add(temp);	
 				}
@@ -614,8 +631,7 @@ Void CheckpointManage(CSmPlayer _Player){
 	} else {
 		G_BestChecksInt[G_CheckpointNext[_Player.Id]] = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
 	}
-
-	UpdateScoresTable();
+	
 }
 
 //When a player passes checkoint
@@ -661,6 +677,7 @@ Void CheckpointEvent(CSmPlayer _Player){
 	G_CheckpointNext[_Player.Id] += 1;	
 	
 	Message::SendStatusMessage(_Player, "Time : " ^ TextLib::TimeToText(Now - G_StartsTime[_Player.Id], True) ^ diffText ^ "\nCheckpoint : " ^ TextLib::TimeToText(CheckpointsIntTimes[G_CheckpointNext[_Player.Id] - 1],True) ^ diffIntText, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);
+	UpdateScoresTable();
 }
 
 //When a player passes finish
@@ -707,7 +724,7 @@ Void FinishEvent(CSmPlayer _Player){
 	Chrono::Reset(_Player.Id);
 	
 	SendNotice(_Player, "Run completed.");
-	
+	UpdateScoresTable();
 	G_FinishAny = True;
 }
 
@@ -793,6 +810,7 @@ Text CreateScoresTable(){
 		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
 
 		declare netread Text[] G_PlayersScoresTimes for Teams[0];
+		declare netread Text[Text] Net_Checkpoints for Teams[0];
 
 		declare netwrite currentPage for UI = 0;
 		declare netwrite ShowOptionsMenu for UI = 0;
@@ -834,9 +852,8 @@ Text CreateScoresTable(){
 						LabelsTime[0].Value = "--:--.--";
 					}
 				}
-				LabelsCP[0].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[3];
+				LabelsCP[0].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[1]];
 			} else {
-
 				LabelsCP[0].Value = "N/A";
 				Labels[1].Value = "No Player";
 				LabelsTime[0].Value = "--:--.--";
@@ -857,7 +874,9 @@ Text CreateScoresTable(){
 				} else {
 						LabelsTime[1].Value = "--:--.--";
 				}
+				LabelsCP[1].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[1]];
 			} else {
+				LabelsCP[1].Value = "N/A";
 				Labels[2].Value = "No Player";
 				LabelsTime[1].Value = "--:--.--";
 				if(currentPage == 0){
@@ -877,7 +896,9 @@ Text CreateScoresTable(){
 				} else {
 					LabelsTime[2].Value = "--:--.--";
 				}
+				LabelsCP[2].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[1]];
 			} else {
+				LabelsCP[2].Value = "N/A";
 				Labels[3].Value = "No Player";
 				LabelsTime[2].Value = "--:--.--";
 				if(currentPage == 0){
@@ -894,7 +915,9 @@ Text CreateScoresTable(){
 				} else {
 					LabelsTime[3].Value = "--:--.--";
 				}
+				LabelsCP[3].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[1]];
 			} else {
+				LabelsCP[3].Value = "N/A";
 				Labels[4].Value = "No Player";
 				LabelsTime[3].Value = "--:--.--";
 			}
@@ -908,7 +931,9 @@ Text CreateScoresTable(){
 				} else {
 					LabelsTime[4].Value = "--:--.--";
 				}
+				LabelsCP[4].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[1]];
 			} else {
+				LabelsCP[4].Value = "N/A";
 				Labels[5].Value = "No Player";
 				LabelsTime[4].Value = "--:--.--";
 			}
@@ -922,7 +947,9 @@ Text CreateScoresTable(){
 				} else {
 					LabelsTime[5].Value = "--:--.--";
 				}
+				LabelsCP[5].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[1]];
 			} else {
+				LabelsCP[5].Value = "N/A";
 				Labels[6].Value = "No Player";
 				LabelsTime[5].Value = "--:--.--";
 			}
@@ -936,7 +963,9 @@ Text CreateScoresTable(){
 				} else {
 					LabelsTime[6].Value = "--:--.--";
 				}
+				LabelsCP[6].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[1]];
 			} else {
+				LabelsCP[6].Value = "N/A";
 				Labels[7].Value = "No Player";
 				LabelsTime[6].Value = "--:--.--";
 			}
@@ -1088,12 +1117,14 @@ Void CreateUIOptionsMenu(){
 		declare Labels = [
 			(Page.GetFirstChild("restartKey") as CMlLabel),
 			(Page.GetFirstChild("respawnKey") as CMlLabel),
-			(Page.GetFirstChild("showHud") as CMlLabel)
+			(Page.GetFirstChild("showHud") as CMlLabel),
+			(Page.GetFirstChild("extraHud") as CMlLabel)
 		];
 
 		declare RestartKey for UI = "Delete";
 		declare RespawnKey for UI = "Back";
 		declare netwrite SwitchFullHud for UI = True;
+		declare netwrite SwitchExtraHud for UI = True;
 
 		declare RestartKeyEdit for UI = False;
 		declare RespawnKeyEdit for UI = False;
@@ -1102,6 +1133,11 @@ Void CreateUIOptionsMenu(){
 			Labels[2].Value = "Yes";
 		} else {
 			Labels[2].Value = "No";
+		}
+		if(SwitchExtraHud){
+			Labels[3].Value = "Yes";
+		} else {
+			Labels[3].Value = "No";
 		}
 		Labels[0].Value = RestartKey;
 		Labels[1].Value = RespawnKey;
@@ -1122,13 +1158,20 @@ Void CreateUIOptionsMenu(){
 						if(Event.ControlId == "closeOptionsMenu"){
 							ShowOptionsMenu = 0;
 						}
-						
 						if(Event.ControlId == "showHud"){
 							SwitchFullHud = !SwitchFullHud;
 							if(SwitchFullHud){
 								Labels[2].Value = "Yes";
 							} else {
 								Labels[2].Value = "No";
+							}
+						}
+						if(Event.ControlId == "extraHud"){
+							SwitchExtraHud = !SwitchExtraHud;
+							if(SwitchExtraHud){
+								Labels[3].Value = "Yes";
+							} else {
+								Labels[3].Value = "No";
 							}
 						}
 						if(Event.ControlId == "restartKey"){
@@ -1158,14 +1201,16 @@ Void CreateUIOptionsMenu(){
 		--></script>
 		<frame id="OptionsMenu">	
 		<quad posn="-160 78 0" sizen="75 98" bgcolor="000000C6"/>
-		<label posn="-158 76 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3"/>
+		<label posn="-158 76 1" sizen="70 6" text="Options" style="TextTitle3" id="closeMenu" textsize="3"/>
 		<label posn="-157 67 1" sizen="69 5" text="Restart key" textsize="2"/>
 		<label posn="-150 62 1" sizen="20 5" text="BackSpace" style="CardButtonMediumXL" scriptevents="1" id="restartKey"/>
 		<label posn="-157 50 1" sizen="69 5" text="Respawn key" textsize="2"/>
 		<label posn="-150 45 1" sizen="20 5" text="Suppr" style="CardButtonMediumXL" scriptevents="1" id="respawnKey"/>
-		<label posn="-157 33 1" sizen="69 5" text="Show Full Hud" textsize="2"/>
+		<label posn="-157 33 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
 		<label posn="-150 28 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
-		<label posn="-161 -7 2" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+		<label posn="-157 16 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
+		<label posn="-150 11 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
+		<label posn="-161 -7 1" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
 		</frame>
 	""";
 }
