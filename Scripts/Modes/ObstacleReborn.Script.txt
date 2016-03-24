@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "15"
+#Const Version             "16"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 15
+#Const C_Revision 16
 
 // ---------------------------------- //
 // Globales
@@ -40,6 +40,7 @@ declare Integer[Ident] G_StartsTime;
 declare Integer[Ident] G_PreviousTimes;
 declare Integer[Ident] G_BestTimes;
 
+declare Integer[Integer] G_BestChecks;
 declare Integer[Integer] G_BestChecksInt;
 
 declare Integer[Ident] G_CheckpointNext;
@@ -345,7 +346,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 	declare CSmPlayer SpecPlayer for UI;
 
 	if(UI.SpectatorForcedTarget != NullId){
-		if(Players[UI.SpectatorForcedTarget].Login != SpecTarget){
+		if(Players.existskey(UI.SpectatorForcedTarget) && Players[UI.SpectatorForcedTarget].Login != SpecTarget){
 			foreach(Player, Players){
 				if(Player.Login == SpecTarget){
 					SpecPlayer = Player;
@@ -359,10 +360,18 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 					SpecPlayer = Player;
 				}
 			}
+		} else {
+			if(Players.existskey(UI.SpectatorForcedTarget) && Players[UI.SpectatorForcedTarget].Login != SpecTarget){
+				foreach(Player, Players){
+					if(Player.Login == SpecTarget){
+						SpecPlayer = Player;
+					}
+				}
+			}
 		}
 	}
 
-	if(SpecPlayer != Null && SpecPlayer != _Player){
+	if(!_Player.RequestsSpectate && SpecPlayer != Null && SpecPlayer != _Player){
 		UI.SpectatorForcedTarget = SpecPlayer.Id;
 		UI.SpectatorAutoTarget = SpecPlayer.Id;
 		UI.ForceSpectator = True;
@@ -421,13 +430,28 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 		}
 		
 		if(G_Finish[_Player.Id] != 0 && G_CheckpointNext[_Player.Id] != 0 && CheckpointsTimes[G_CheckpointNext[_Player.Id]] != 0){
-			NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True);
+			if(G_BestChecks[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] > 0){
+				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ " [+" ^ TextLib::TimeToText(G_BestChecks[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ "]";	
+			} else {
+				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True);
+			}
 		} else {
 			NextCheckPersonal = "--:--,--";
 		}
 		
 		if(G_CheckpointNext[_Player.Id] > 1){
-			PreviousCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1], True);
+			PreviousCheckPersonal = "";
+			if(G_Finish[_Player.Id] != 0){
+				declare diff = CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1];
+				if(diff > 0){
+					PreviousCheckPersonal = "$f66(+" ^ TextLib::TimeToText(diff, True) ^ ")";	
+				} else {
+					PreviousCheckPersonal = "$66f" ^ TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1], True);
+				}
+			}
+			if(G_BestChecks[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] > 0){
+				PreviousCheckPersonal ^= " $f66[+" ^ G_BestChecks[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] ^ "]";
+			}
 		} else {
 			PreviousCheckPersonal = "--:--,--";
 		}
@@ -506,10 +530,10 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			"""
 			<quad posn="-40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
 			<quad posn="40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
-			<label posn="-50 -61 0" sizen="34 6" style="TextButtonMedium" text="$sLast (ALL)" id="time" halign="center" valign="center"/>
-			<label posn="30 -61 0" sizen="34 6" style="TextButtonMedium" text="$sNext (ALL)" id="time" halign="center" valign="center"/>			
-			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="4" halign="center" valign="center"/>
-			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="4" halign="center" valign="center"/>
+			<label posn="-50 -61 0" sizen="34 6" style="TextButtonMedium" text="$sPrevious" id="time" halign="center" valign="center"/>
+			<label posn="30 -61 0" sizen="34 6" style="TextButtonMedium" text="$sNext" id="time" halign="center" valign="center"/>			
+			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
 			""";
 		}
 	}
@@ -602,10 +626,14 @@ Void CheckpointManage(CSmPlayer _Player){
 	//If first run
 	if(G_Finish[_Player.Id] == 0){
 		CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] = CheckpointsTimes[G_CheckpointNext[_Player.Id]];
+		G_BestChecks[G_CheckpointNext[_Player.Id]] = CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
 	} else {
 		diff = CheckpointsTimes[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
 		if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] > CheckpointsTimes[G_CheckpointNext[_Player.Id]]){
 			CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] = CheckpointsTimes[G_CheckpointNext[_Player.Id]];
+			if(G_BestChecks[G_CheckpointNext[_Player.Id]] > CheckpointsBestTimes[G_CheckpointNext[_Player.Id]]){
+				G_BestChecks[G_CheckpointNext[_Player.Id]] = CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
+			}
 		}
 	}
 	
@@ -616,7 +644,6 @@ Void CheckpointManage(CSmPlayer _Player){
 		diffInt = CheckpointsIntTimes[G_CheckpointNext[_Player.Id]] - CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
 		if(CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] > CheckpointsIntTimes[G_CheckpointNext[_Player.Id]]){
 			CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] = CheckpointsIntTimes[G_CheckpointNext[_Player.Id]];
-			SendNotice(_Player, "$65CBest CP (ALL PLAYERS)");
 		}
 	}
 	
@@ -807,6 +834,10 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("cp7") as CMlLabel)
 			];
 
+		declare LabelPlayers = [
+			(Page.GetFirstChild("players") as CMlLabel)
+		];
+
 		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
 
 		declare netread Text[] G_PlayersScoresTimes for Teams[0];
@@ -821,7 +852,7 @@ Text CreateScoresTable(){
 		}
 
 		while (True) {
-
+			LabelPlayers[0].Value = "Players : " ^ {{{Players.count}}};
 			if(ShowOptionsMenu == 0){
 				LabelOptionsMenu[0].Visible = True;
 			} else {
@@ -1100,7 +1131,7 @@ Text CreateScoresTable(){
 		<quad id="next" posn="72 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
 		<quad id="prev" posn="67 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
 		<label id="currentPage" posn="0 -55 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
-		<label posn="-77 -54 1" sizen="58 5" text="Players : {{{Players.count}}}" textsize="2"/>
+		<label posn="-77 -54 1" sizen="58 5" text="Players" textsize="2" id="players"/>
 		""";
 
 	return Manialink;
@@ -1254,7 +1285,8 @@ Void InitObstacle(){
 	ChecksRaw.clear();
 	G_StartsTime = Integer[Ident];
 	G_BestChecksInt = Integer[Integer];
-	
+	G_BestChecks = Integer[Integer];
+
 	//Colors
 	foreach(Base, MapBases){
 		Base.Clan = 0;
