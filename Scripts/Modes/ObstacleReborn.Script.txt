@@ -440,7 +440,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 		}
 		
 		if(G_CheckpointNext[_Player.Id] > 1){
-			PreviousCheckPersonal = "";
+			PreviousCheckPersonal = "--:--,--";
 			if(G_Finish[_Player.Id] != 0){
 				declare diff = CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1];
 				if(diff > 0){
