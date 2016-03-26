@@ -23,7 +23,7 @@ Mode :
 
 MapType :
 - [MED] Add no regen ammo option
-- [MED] Add negative regen ammo option : Infinite but decrease if no use.
+- [MED] Add negative stamina ammo option : Infinite but decrease if no use.
 - [LOW] Add some credits
 - [LOW] More animation about windows, and better interface of windows.
 
