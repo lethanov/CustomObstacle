@@ -312,7 +312,7 @@ Void RestartPlayer(CSmPlayer _Player){
 	declare UI <=> UIManager.GetUI(_Player);
 	declare netread RespawnAtStart for UI = False;
 
-	if(RespawnAtStart){
+	if(!RespawnAtStart){
 		if(G_CheckpointNext[_Player.Id] > 1){
 			
 			
@@ -490,7 +490,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>			
 			""";
-			if(RespawnAtStart){
+			if(!RespawnAtStart){
 				UI.ManialinkPage ^=	
 				"""
 				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
@@ -525,7 +525,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>
 			""";
-			if(RespawnAtStart){
+			if(!RespawnAtStart){
 				UI.ManialinkPage ^=	
 				"""
 				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
