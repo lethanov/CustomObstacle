@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "16"
+#Const Version             "17"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 16
+#Const C_Revision 17
 
 // ---------------------------------- //
 // Globales
@@ -93,7 +93,7 @@ InitInterface();
 G_GamePhase = "init";
 //declare test = Users_CreateFake("Oiseau", 0);
 //Users_DestroyAllFakes();
-//Users_SetNbFakeUsers(13, 0);
+//Users_SetNbFakeUsers(20,0);
 InitObstacle();
 
 MB_Sleep(1); //Score sort
@@ -103,7 +103,6 @@ sleep(1000);
 
 ***PlayLoop***
 ***
-
 if(G_GamePhase == "init"){
 	declare Text authorMsg = "Author : $z" ^ Map.AuthorNickName ^ " $z(" ^ Map.AuthorLogin ^ ")";
 	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
@@ -131,18 +130,14 @@ Message::Loop();
 ***
 Chrono::Create(Player.Id);
 G_StartsTime[Player.Id] = 0;
-G_Finish[Player.Id] = 0;
 G_Stamina[Player.Id] = False;
 if(!G_BestTimes.existskey(Player.Id)){
+	G_Finish[Player.Id] = 0;
 	G_BestTimes[Player.Id] = -1;
 	G_PreviousTimes[Player.Id] = 0;
+	declare Integer[Integer] CheckpointsTimes for Player;
+	CheckpointsTimes = Integer[Integer];
 }
-
-
-
-declare Integer[Integer] CheckpointsTimes for Player;
-			
-CheckpointsTimes = Integer[Integer];
 UpdateScoresTable();
 ***
 
@@ -285,14 +280,19 @@ Void ChangeAmmo(CSmPlayer _Player){
 	} else {
 	//On Spawn
 		if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
-			
+			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
 			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
 			_Player.AmmoGain = 10.0;
 			SendNotice(_Player, "Weapon ammo set to unlimited.");
 		} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
+			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
 			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
 			_Player.AmmoGain = 0.0;
 			SendNotice(_Player, "No ammo.");
+		} else {
+			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
+			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+			_Player.AmmoGain = 1.0;
 		}
 	}
 }
@@ -300,17 +300,21 @@ Void ChangeAmmo(CSmPlayer _Player){
 //Spawn player
 Void OSpawnPlayer(CSmPlayer _Player){
 	_Player.ArmorMax = 100;
-	ChangeStamina(_Player);
-	ChangeAmmo(_Player);
 	
 	SpawnPlayer(_Player, 0, 100, G_MainSpawn.PlayerSpawn, Now);
+	ChangeStamina(_Player);
+	ChangeAmmo(_Player);
 }
 
 //Restart player
-Void RestartPlayer(CSmPlayer _Player, Boolean _TrueRestart){
-	if(!_TrueRestart){
+Void RestartPlayer(CSmPlayer _Player){
+
+	declare UI <=> UIManager.GetUI(_Player);
+	declare netread RespawnAtStart for UI = False;
+
+	if(RespawnAtStart){
 		if(G_CheckpointNext[_Player.Id] > 1){
-			declare UI <=> UIManager.GetUI(_Player);
+			
 			
 			RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
 			G_Respawns[_Player.Id] += 1;
@@ -341,44 +345,32 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 	declare netread Boolean SwitchFullHud for UI;
 	declare netread Boolean SwitchExtraHud for UI;
 	
+	declare netread RespawnAtStart for UI = False;
+
 	//Force spectate someone
 	declare netread Text SpecTarget for UI;
 	declare CSmPlayer SpecPlayer for UI;
 
-	if(UI.SpectatorForcedTarget != NullId){
-		if(Players.existskey(UI.SpectatorForcedTarget) && Players[UI.SpectatorForcedTarget].Login != SpecTarget){
-			foreach(Player, Players){
-				if(Player.Login == SpecTarget){
-					SpecPlayer = Player;
-				}
-			}
-		}
-	} else {
-		if(SpecTarget != ""){
-			foreach(Player, Players){
-				if(Player.Login == SpecTarget){
-					SpecPlayer = Player;
-				}
-			}
-		} else {
-			if(Players.existskey(UI.SpectatorForcedTarget) && Players[UI.SpectatorForcedTarget].Login != SpecTarget){
-				foreach(Player, Players){
-					if(Player.Login == SpecTarget){
-						SpecPlayer = Player;
-					}
-				}
+	SpecPlayer = Null;
+
+	if(SpecTarget != "" && SpecTarget != _Player.Login){
+		//Search for the player wanted
+		foreach(OtherPlayer, Players){
+			if(OtherPlayer.Login == SpecTarget){
+				SpecPlayer = OtherPlayer;
 			}
 		}
 	}
 
-	if(!_Player.RequestsSpectate && SpecPlayer != Null && SpecPlayer != _Player){
+	UI.SpectatorForcedTarget = NullId;
+	UI.SpectatorAutoTarget = NullId;
+	UI.ForceSpectator = False;
+
+	if(SpecPlayer != Null && Players.exists(SpecPlayer) && !SpecPlayer.RequestsSpectate){
 		UI.SpectatorForcedTarget = SpecPlayer.Id;
 		UI.SpectatorAutoTarget = SpecPlayer.Id;
 		UI.ForceSpectator = True;
-	} else {
-		UI.ForceSpectator = False;
 	}
-
 
 	UI.MarkersXML = "";
 	UI.ManialinkPage = "";
@@ -430,8 +422,8 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 		}
 		
 		if(G_Finish[_Player.Id] != 0 && G_CheckpointNext[_Player.Id] != 0 && CheckpointsTimes[G_CheckpointNext[_Player.Id]] != 0){
-			if(G_BestChecks[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] > 0){
-				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ " [+" ^ TextLib::TimeToText(G_BestChecks[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ "]";	
+			if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] - G_BestChecks[G_CheckpointNext[_Player.Id]] > 0){
+				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ " $f66[+" ^ TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] - G_BestChecks[G_CheckpointNext[_Player.Id]], True) ^ "]";	
 			} else {
 				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True);
 			}
@@ -440,7 +432,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 		}
 		
 		if(G_CheckpointNext[_Player.Id] > 1){
-			PreviousCheckPersonal = "--:--,--";
+			PreviousCheckPersonal = TextLib::TimeToText(CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1], True);
 			if(G_Finish[_Player.Id] != 0){
 				declare diff = CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1];
 				if(diff > 0){
@@ -449,8 +441,8 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 					PreviousCheckPersonal = "$66f" ^ TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1], True);
 				}
 			}
-			if(G_BestChecks[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] > 0){
-				PreviousCheckPersonal ^= " $f66[+" ^ G_BestChecks[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] ^ "]";
+			if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] - G_BestChecks[G_CheckpointNext[_Player.Id] - 1] > 0){
+				PreviousCheckPersonal ^= " $f66[+" ^ TextLib::TimeToText(CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - G_BestChecks[G_CheckpointNext[_Player.Id] - 1], True) ^ "]";
 			}
 		} else {
 			PreviousCheckPersonal = "--:--,--";
@@ -476,7 +468,7 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			UI.ManialinkPage =	
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sProgress : {{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
+			
 			
 			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
 			
@@ -498,11 +490,21 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>			
 			""";
+			if(RespawnAtStart){
+				UI.ManialinkPage ^=	
+				"""
+				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
+				""";
+			} else {
+				UI.ManialinkPage ^=	
+				"""
+				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | $f00No respawn"/>
+				""";
+			}
 		} else { //Show Minimal Hud
 			UI.ManialinkPage =
 			"""
 			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
 			
 			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
 			
@@ -523,6 +525,17 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
 			</frame>
 			""";
+			if(RespawnAtStart){
+				UI.ManialinkPage ^=	
+				"""
+				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
+				""";
+			} else {
+				UI.ManialinkPage ^=	
+				"""
+				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}}"/>
+				""";
+			}
 		}
 
 		if(SwitchExtraHud){
@@ -532,8 +545,8 @@ Void UpdatePlayerInterface(CSmPlayer _Player){
 			<quad posn="40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
 			<label posn="-50 -61 0" sizen="34 6" style="TextButtonMedium" text="$sPrevious" id="time" halign="center" valign="center"/>
 			<label posn="30 -61 0" sizen="34 6" style="TextButtonMedium" text="$sNext" id="time" halign="center" valign="center"/>			
-			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
+			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="2" halign="center" valign="center"/>
+			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="2" halign="center" valign="center"/>
 			""";
 		}
 	}
@@ -563,10 +576,10 @@ Void UpdateScoresTable(){
 			if(G_CheckpointNext[Player.Id] > 1 && G_CheckpointNext[Player.Id] - 1 < G_CheckpointsCount){
 				Net_Checkpoints[Player.Login] = TextLib::ToText(G_CheckpointNext[Player.Id] - 1);
 			} else {
-				Net_Checkpoints[Player.Login] = "N/A";
+				Net_Checkpoints[Player.Login] = "$609N/A";
 			}
 		} else {
-			Net_Checkpoints[Player.Login] = "N/A";
+			Net_Checkpoints[Player.Login] = "$609N/A";
 		}
 		PlayerList.add(Player);
 	}
@@ -657,13 +670,11 @@ Void CheckpointManage(CSmPlayer _Player){
 		}
 	} else {
 		G_BestChecksInt[G_CheckpointNext[_Player.Id]] = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
-	}
-	
+	}	
 }
 
 //When a player passes checkoint
-Void CheckpointEvent(CSmPlayer _Player){
-
+Void CheckpointEvent(CSmPlayer _Player){	
 	declare Integer[Integer] CheckpointsTimes for _Player;
 	declare Integer[Integer] CheckpointsIntTimes for _Player;
 	
@@ -759,32 +770,24 @@ Text CreateUIEventManager(){
 	declare Manialink = """
 		<script><!--
 
-		declare netwrite RespawnTime for UI = 0;
-		declare netwrite RestartTime for UI = 0;
-
-		declare RestartKey for UI = "Delete";
-		declare RespawnKey for UI = "Back";
-
 		declare netwrite ShowOptionsMenu for UI = 0;
+		declare Text RespawnKeyToggle for UI;
+
+		declare netwrite RespawnAtStart for UI = False;
 
 		while (True) {
 			yield;
 			// Process events
 			foreach (Event in PendingEvents) {
 				switch (Event.Type) {
-					case CMlEvent::Type::KeyPress: {
-						if(ShowOptionsMenu == 0){
-							if(Event.KeyName == RespawnKey){
-								RespawnTime = ArenaNow;
-							}
-							if(Event.KeyName == RestartKey){
-								RestartTime = ArenaNow;
-							}
-						}
-					}
 					case CMlEvent::Type::MouseClick: {
 						if(Event.ControlId == "closeOptionsMenu"){
 							ShowOptionsMenu = 0;
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(Event.KeyName == RespawnKeyToggle){
+							RespawnAtStart = !RespawnAtStart;
 						}
 					}
 				}
@@ -800,9 +803,13 @@ Text CreateScoresTable(){
 		<script><!--
 
 		#Include "TextLib" as TextLib
+		#Include "MathLib" as MathLib
 		
 
 		declare Buttons = [(Page.GetFirstChild("prev") as CMlQuad), (Page.GetFirstChild("next") as CMlQuad)];
+
+		declare Scores = [(Page.GetFirstChild("Scores") as CMlFrame)];
+
 		declare Labels = [
 			(Page.GetFirstChild("currentPage") as CMlLabel),
 			(Page.GetFirstChild("1") as CMlLabel),
@@ -811,7 +818,10 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("4") as CMlLabel),
 			(Page.GetFirstChild("5") as CMlLabel),
 			(Page.GetFirstChild("6") as CMlLabel),
-			(Page.GetFirstChild("7") as CMlLabel)
+			(Page.GetFirstChild("7") as CMlLabel),
+			(Page.GetFirstChild("8") as CMlLabel),
+			(Page.GetFirstChild("9") as CMlLabel),
+			(Page.GetFirstChild("10") as CMlLabel)
 			];
 
 		declare LabelsTime = [
@@ -821,7 +831,10 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("time4") as CMlLabel),
 			(Page.GetFirstChild("time5") as CMlLabel),
 			(Page.GetFirstChild("time6") as CMlLabel),
-			(Page.GetFirstChild("time7") as CMlLabel)
+			(Page.GetFirstChild("time7") as CMlLabel),
+			(Page.GetFirstChild("time8") as CMlLabel),
+			(Page.GetFirstChild("time9") as CMlLabel),
+			(Page.GetFirstChild("time10") as CMlLabel)
 			];
 
 		declare LabelsCP = [
@@ -831,43 +844,51 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("cp4") as CMlLabel),
 			(Page.GetFirstChild("cp5") as CMlLabel),
 			(Page.GetFirstChild("cp6") as CMlLabel),
-			(Page.GetFirstChild("cp7") as CMlLabel)
+			(Page.GetFirstChild("cp7") as CMlLabel),
+			(Page.GetFirstChild("cp8") as CMlLabel),
+			(Page.GetFirstChild("cp9") as CMlLabel),
+			(Page.GetFirstChild("cp10") as CMlLabel)
 			];
 
 		declare LabelPlayers = [
 			(Page.GetFirstChild("players") as CMlLabel)
 		];
 
+
 		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
 
 		declare netread Text[] G_PlayersScoresTimes for Teams[0];
 		declare netread Text[Text] Net_Checkpoints for Teams[0];
 
-		declare netwrite currentPage for UI = 0;
-		declare netwrite ShowOptionsMenu for UI = 0;
+		declare netread Integer Net_PlayersCount for Teams[0];
+
+		declare netwrite Integer currentPage for UI;
+		declare ShowOptionsMenu for UI = 0;
 		declare netwrite SpecTarget for UI = "";
 
-		if(currentPage > {{{AllPlayers.count/7}}}){
-			currentPage = 0;
-		}
+		currentPage = 0;
 
 		while (True) {
-			LabelPlayers[0].Value = "Players : " ^ {{{Players.count}}};
 			if(ShowOptionsMenu == 0){
-				LabelOptionsMenu[0].Visible = True;
+				Scores[0].Visible = True;
 			} else {
-				LabelOptionsMenu[0].Visible = False;
+				Scores[0].Visible = False;
 			}
+			if(Net_PlayersCount < 7){
+				currentPage = 0;
+			}
+			LabelPlayers[0].Value = "Players : " ^ Net_PlayersCount;
+			
 			declare firstTime = 0;
-			if({{{AllPlayers.count}}} > 7){
-				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText({{{(AllPlayers.count/7)}}});
+			if(Net_PlayersCount > 7){
+				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText(MathLib::CeilingInteger(Net_PlayersCount/10.0));
 			} else {
 				Labels[0].Value = "";
 			}
 
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 0)){
-				Labels[1].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[0]);
+			if(G_PlayersScoresTimes.existskey(currentPage * 10 + 0)){
+				Labels[1].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[2];
+				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[0]);
 				firstTime = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[0])[0]);
 				LabelsTime[0].Value = TextLib::TimeToText(time, True);
 				if(currentPage == 0){
@@ -878,14 +899,14 @@ Text CreateScoresTable(){
 					}
 				} else {
 					if(time != -1){
-						LabelsTime[0].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 - 1])[0]), True) ^ ")$FFF " ^ LabelsTime[0].Value;	
+						LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;	
 					} else {
 						LabelsTime[0].Value = "--:--.--";
 					}
 				}
-				LabelsCP[0].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[1]];
+				LabelsCP[0].Value = "$609" ^ Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[1]];
 			} else {
-				LabelsCP[0].Value = "N/A";
+				LabelsCP[0].Value = "$609N/A";
 				Labels[1].Value = "No Player";
 				LabelsTime[0].Value = "--:--.--";
 				if(currentPage == 0){
@@ -893,112 +914,31 @@ Text CreateScoresTable(){
 				}
 			}
 
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 1)){
-				Labels[2].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[0]);
-				LabelsTime[1].Value = TextLib::TimeToText(time, True);
-				if(currentPage == 0){
-					LabelsTime[1].Value = "$666" ^ LabelsTime[1].Value;
-				}
-				if(time != -1){
-					LabelsTime[1].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[0]), True) ^ ")$z " ^ LabelsTime[1].Value;
-				} else {
-						LabelsTime[1].Value = "--:--.--";
-				}
-				LabelsCP[1].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[1]];
-			} else {
-				LabelsCP[1].Value = "N/A";
-				Labels[2].Value = "No Player";
-				LabelsTime[1].Value = "--:--.--";
-				if(currentPage == 0){
-					LabelsTime[1].Value = "$666" ^ LabelsTime[1].Value;
-				}
-			}
+			declare index = 1;
 
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 2)){
-				Labels[3].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[0]);
-				LabelsTime[2].Value = TextLib::TimeToText(time, True);
-				if(currentPage == 0){
-					LabelsTime[2].Value = "$960" ^ LabelsTime[2].Value;
-				}
-				if(time != -1){
-					LabelsTime[2].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[0]), True) ^ ")$z " ^ LabelsTime[2].Value;
+			while(index < 10){
+				if(G_PlayersScoresTimes.existskey(currentPage * 10 + index)){
+					Labels[1 + index].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[2];
+					declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[0]);
+					LabelsTime[index].Value = TextLib::TimeToText(time, True);
+					if(currentPage == 0){
+						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
+					}
+					if(time != -1){
+						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
+					} else {
+							LabelsTime[index].Value = "--:--.--";
+					}
+					LabelsCP[index].Value = "$609" ^ Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[1]];
 				} else {
-					LabelsTime[2].Value = "--:--.--";
+					LabelsCP[index].Value = "$609N/A";
+					Labels[1 + index].Value = "No Player";
+					LabelsTime[index].Value = "--:--.--";
+					if(currentPage == 0){
+						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
+					}
 				}
-				LabelsCP[2].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[1]];
-			} else {
-				LabelsCP[2].Value = "N/A";
-				Labels[3].Value = "No Player";
-				LabelsTime[2].Value = "--:--.--";
-				if(currentPage == 0){
-					LabelsTime[2].Value = "$960" ^ LabelsTime[2].Value;
-				}
-			}
-
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 3)){
-				Labels[4].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[0]);
-				LabelsTime[3].Value = TextLib::TimeToText(time, True);
-				if(time != -1){
-					LabelsTime[3].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[0]), True) ^ ")$z " ^ LabelsTime[3].Value;
-				} else {
-					LabelsTime[3].Value = "--:--.--";
-				}
-				LabelsCP[3].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[1]];
-			} else {
-				LabelsCP[3].Value = "N/A";
-				Labels[4].Value = "No Player";
-				LabelsTime[3].Value = "--:--.--";
-			}
-
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 4)){
-				Labels[5].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[0]);
-				LabelsTime[4].Value = TextLib::TimeToText(time, True);
-				if(time != -1) {
-					LabelsTime[4].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[0]), True) ^ ")$z " ^ LabelsTime[4].Value;
-				} else {
-					LabelsTime[4].Value = "--:--.--";
-				}
-				LabelsCP[4].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[1]];
-			} else {
-				LabelsCP[4].Value = "N/A";
-				Labels[5].Value = "No Player";
-				LabelsTime[4].Value = "--:--.--";
-			}
-
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 5)){
-				Labels[6].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[0]);
-				LabelsTime[5].Value = TextLib::TimeToText(time, True);
-				if(time != -1){
-					LabelsTime[5].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[0]), True) ^ ")$z " ^ LabelsTime[5].Value;
-				} else {
-					LabelsTime[5].Value = "--:--.--";
-				}
-				LabelsCP[5].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[1]];
-			} else {
-				LabelsCP[5].Value = "N/A";
-				Labels[6].Value = "No Player";
-				LabelsTime[5].Value = "--:--.--";
-			}
-
-			if(G_PlayersScoresTimes.existskey(currentPage * 7 + 6)){
-				Labels[7].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[0]);
-				LabelsTime[6].Value = TextLib::TimeToText(time, True);
-				if(time != -1){
-					LabelsTime[6].Value = "$C33(+" ^ TextLib::TimeToText(time - firstTime, True) ^") $f66(+" ^ TextLib::TimeToText(time - TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[0]), True) ^ ")$z " ^ LabelsTime[6].Value;
-				} else {
-					LabelsTime[6].Value = "--:--.--";
-				}
-				LabelsCP[6].Value = Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[1]];
-			} else {
-				LabelsCP[6].Value = "N/A";
-				Labels[7].Value = "No Player";
-				LabelsTime[6].Value = "--:--.--";
+				index += 1;
 			}
 
 			// Process events
@@ -1011,50 +951,58 @@ Text CreateScoresTable(){
 							}
 						}
 						if(Event.ControlId == "next"){
-							if(currentPage < {{{(AllPlayers.count/7)}}}- 1){
+							if(currentPage < MathLib::CeilingInteger(Net_PlayersCount/10.0) - 1){
 								currentPage += 1;
 							}
 						}
 						if(Event.ControlId == "spec1"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 0)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 0)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[1];
 							}
 						}
 						if(Event.ControlId == "spec2"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 1)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 1])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 1)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 1])[1];
 							}
 						}
 						if(Event.ControlId == "spec3"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 2)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 2])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 2)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 2])[1];
 							}
 						}
 						if(Event.ControlId == "spec4"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 3)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 3])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 3)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 3])[1];
 							}
 						}
 						if(Event.ControlId == "spec5"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 4)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 4])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 4)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 4])[1];
 							}
 						}
 						if(Event.ControlId == "spec6"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 5)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 5])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 5)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 5])[1];
 							}
 						}
 						if(Event.ControlId == "spec7"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 7 + 6)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 7 + 6])[1];
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 6])[1];
 							}
 						}
-						if(Event.ControlId == "showOptionsMenu"){
-							if(ShowOptionsMenu == 0){
-								ShowOptionsMenu = 1;
-							} else {
-								ShowOptionsMenu = 0;
+						if(Event.ControlId == "spec8"){
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 7])[1];
+							}
+						}
+						if(Event.ControlId == "spec9"){
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 8])[1];
+							}
+						}
+						if(Event.ControlId == "spec10"){
+							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
+								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 9])[1];
 							}
 						}
 					}
@@ -1063,75 +1011,102 @@ Text CreateScoresTable(){
 			yield;
 		}
 		--></script>
-		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
-		<label posn="-75 31 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
-		<label posn="-55 32 1" sizen="133 7" text="on {{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="2" valign="bottom"/>
-		<label id="showOptionsMenu" posn="-159 82 0" sizen="83 5" autonewline="1" text="$sClick here to show Options Menu" textsize="2" scriptevents="1" style="TextTitle2Blink"/>
-		<quad posn="0 -10 0" sizen="160 100" bgcolor="101010AA" halign="center" valign="center"/>
-		<label posn="-76 37 1" sizen="33 7" text="Times" style="TextTitle3" textsize="4"/>
-		<label posn="-75 24 1" sizen="69 5" text="NickName" valign="center" halign="left" textsize="2"/>
-		<label posn="4 23 1" sizen="20 5" text="CP" textsize="2" halign="center" valign="center"/>
-		<label posn="73 24 1" sizen="40 5" text="(Diff First) (Diff Prev) Time" valign="center" halign="right" textsize="2"/>
-		<frame posn="-10 25 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="000000C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="01256675" halign="right" valign="center"/>
-			<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
-			<label id="time1" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp1" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		<frame id="Scores" posn="0 8 0">
+			<label posn="-78 37 1" sizen="133 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1"/>
+			<label posn="-78 33 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
+			<quad posn="0 -13.5 0" sizen="160 104" bgcolor="101010AA" halign="center" valign="center"/>
+			<frame posn="0 2 0">
+				<label posn="-75 24 1" sizen="69 5" text="NickName" valign="center" halign="left" textsize="2"/>
+				<label posn="4 23 1" sizen="20 5" text="CP" textsize="2" halign="center" valign="center"/>
+				<label posn="73 24 1" sizen="40 5" text="Time" valign="center" halign="right" textsize="2"/>
+				<quad posn="0 -21 0.5" sizen="158 82" bgcolor="03142AAA" halign="center" valign="center"/>
+
+				<frame posn="-10 25 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
+					<label id="time1" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp1" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 17 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="2" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
+					<label id="time2" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp2" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 9 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="3" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
+					<label id="time3" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp3" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 1 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="4" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
+					<label id="time4" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp4" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 -7 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="5" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
+					<label id="time5" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp5" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 -15 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="6" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
+					<label id="time6" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp6" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 -23 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="7" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
+					<label id="time7" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp7" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 -31 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="8" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec8"/>
+					<label id="time8" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp8" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame posn="-10 -39 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="9" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec9"/>
+					<label id="time9" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp9" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+				
+				<frame posn="-10 -47 1">
+					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
+					<label id="10" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec10"/>
+					<label id="time10" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
+					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp10" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<quad id="next" posn="72 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
+				<quad id="prev" posn="67 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
+				<label id="currentPage" posn="0 -64 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
+				<label id="players" posn="-77 -64 1" sizen="58 5" text="Players" textsize="2" valign="center"/>
+			</frame>			
 		</frame>
-		<frame posn="-10 15 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="111111C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="00174075" halign="right" valign="center"/>
-			<label id="2" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
-			<label id="time2" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp2" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<frame posn="-10 5 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="000000C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="01256675" halign="right" valign="center"/>
-			<label id="3" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
-			<label id="time3" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp3" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<frame posn="-10 -5 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="111111C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="00174075" halign="right" valign="center"/>
-			<label id="4" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
-			<label id="time4" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp4" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<frame posn="-10 -15 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="000000C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="01256675" halign="right" valign="center"/>
-			<label id="5" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
-			<label id="time5" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp5" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<frame posn="-10 -25 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="111111C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="00174075" halign="right" valign="center"/>
-			<label id="6" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
-			<label id="time6" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp6" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<frame posn="-10 -35 1">
-			<quad posn="-68 -10 0" sizen="90 10" bgcolor="000000C6" halign="left" valign="center"/>
-			<quad posn="88 -10 0" sizen="66 10" bgcolor="01256675" halign="right" valign="center"/>
-			<label id="7" posn="-61 -10 0" sizen="81 5" text="No player" valign="center" halign="left"/>
-			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
-			<label id="time7" posn="85 -8 0" sizen="100 5" text="--;--.--" style="TextRaceChrono" textsize="3" halign="right"/>
-			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp7" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-		</frame>
-		<quad id="next" posn="72 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
-		<quad id="prev" posn="67 -52 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
-		<label id="currentPage" posn="0 -55 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
-		<label posn="-77 -54 1" sizen="58 5" text="Players" textsize="2" id="players"/>
 		""";
 
 	return Manialink;
@@ -1141,46 +1116,47 @@ Void CreateUIOptionsMenu(){
 	
 	G_OptionsMenu.ManialinkPage = """
 		<script><!--
-		declare netwrite ShowOptionsMenu for UI = 0;
+		declare ShowOptionsMenu for UI = 0;
 
 		declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame)];
 
 		declare Labels = [
-			(Page.GetFirstChild("restartKey") as CMlLabel),
-			(Page.GetFirstChild("respawnKey") as CMlLabel),
+			(Page.GetFirstChild("showOptionsMenu") as CMlLabel),
 			(Page.GetFirstChild("showHud") as CMlLabel),
-			(Page.GetFirstChild("extraHud") as CMlLabel)
+			(Page.GetFirstChild("extraHud") as CMlLabel),
+			(Page.GetFirstChild("respawnKeyDefault") as CMlLabel)
 		];
 
-		declare RestartKey for UI = "Delete";
-		declare RespawnKey for UI = "Back";
-		declare netwrite SwitchFullHud for UI = True;
-		declare netwrite SwitchExtraHud for UI = True;
+		declare netwrite SwitchFullHud for UI = False;
+		declare netwrite SwitchExtraHud for UI = False;
 
-		declare RestartKeyEdit for UI = False;
-		declare RespawnKeyEdit for UI = False;
-
-		if(SwitchFullHud){
-			Labels[2].Value = "Yes";
-		} else {
-			Labels[2].Value = "No";
-		}
-		if(SwitchExtraHud){
-			Labels[3].Value = "Yes";
-		} else {
-			Labels[3].Value = "No";
-		}
-		Labels[0].Value = RestartKey;
-		Labels[1].Value = RespawnKey;
+		declare RespawnKeyToggleEdit for UI = False;
+		declare RespawnKeyToggle for UI = "F4";		
 
 		while (True) {
 			if(Frame[0].Visible && ShowOptionsMenu == 0){
 				Frame[0].Visible = False;
+				Labels[0].Visible = True;
 			}
 			if(!Frame[0].Visible && ShowOptionsMenu == 1){
 				Frame[0].Visible = True;
+				Labels[0].Visible = False;
 			}
-						
+			if(SwitchFullHud){
+			Labels[1].Value = "Yes";
+			} else {
+				Labels[1].Value = "No";
+			}
+			if(SwitchExtraHud){
+				Labels[2].Value = "Yes";
+			} else {
+				Labels[2].Value = "No";
+			}
+			if(!RespawnKeyToggleEdit){
+				Labels[3].Value = RespawnKeyToggle;
+			} else {
+				Labels[3].Value = "Press new key";
+			}		
 			yield;
 			// Process events
 			foreach (Event in PendingEvents) {
@@ -1189,59 +1165,52 @@ Void CreateUIOptionsMenu(){
 						if(Event.ControlId == "closeOptionsMenu"){
 							ShowOptionsMenu = 0;
 						}
+						if(Event.ControlId == "showOptionsMenu"){
+							if(ShowOptionsMenu == 0){
+								ShowOptionsMenu = 1;
+							} else {
+								ShowOptionsMenu = 0;
+							}
+						}
 						if(Event.ControlId == "showHud"){
 							SwitchFullHud = !SwitchFullHud;
-							if(SwitchFullHud){
-								Labels[2].Value = "Yes";
-							} else {
-								Labels[2].Value = "No";
-							}
+							
 						}
 						if(Event.ControlId == "extraHud"){
 							SwitchExtraHud = !SwitchExtraHud;
-							if(SwitchExtraHud){
-								Labels[3].Value = "Yes";
-							} else {
-								Labels[3].Value = "No";
-							}
 						}
-						if(Event.ControlId == "restartKey"){
-							RestartKeyEdit = True;
-							Labels[0].Value = "Press new key";
-						}
-						if(Event.ControlId == "respawnKey"){
-							RespawnKeyEdit = True;
-							Labels[1].Value = "Press new key";
+						if(Event.ControlId == "respawnKeyDefault"){
+							RespawnKeyToggleEdit = True;
+
 						}
 					}
 					case CMlEvent::Type::KeyPress: {
-						if(RestartKeyEdit){
-							RestartKey = Event.KeyName;
-							RestartKeyEdit = False;
-							Labels[0].Value = RestartKey;
-						}
-						if(RespawnKeyEdit){
-							RespawnKey = Event.KeyName;
-							RespawnKeyEdit = False;
-							Labels[1].Value = RespawnKey;
+						if(RespawnKeyToggleEdit){
+							RespawnKeyToggleEdit = False;
+							RespawnKeyToggle = Event.KeyName;
 						}
 					}
 				}
 			}
 		}
 		--></script>
-		<frame id="OptionsMenu">	
-		<quad posn="-160 78 0" sizen="75 98" bgcolor="000000C6"/>
-		<label posn="-158 76 1" sizen="70 6" text="Options" style="TextTitle3" id="closeMenu" textsize="3"/>
-		<label posn="-157 67 1" sizen="69 5" text="Restart key" textsize="2"/>
-		<label posn="-150 62 1" sizen="20 5" text="BackSpace" style="CardButtonMediumXL" scriptevents="1" id="restartKey"/>
-		<label posn="-157 50 1" sizen="69 5" text="Respawn key" textsize="2"/>
-		<label posn="-150 45 1" sizen="20 5" text="Suppr" style="CardButtonMediumXL" scriptevents="1" id="respawnKey"/>
-		<label posn="-157 33 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
-		<label posn="-150 28 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
-		<label posn="-157 16 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
-		<label posn="-150 11 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
-		<label posn="-161 -7 1" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
+		<label id="showOptionsMenu" posn="-159 82 0" sizen="83 5" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonMedium"/>
+		<frame id="OptionsMenu">
+		<quad posn="0 0 0" sizen="181 98" bgcolor="000000C6" valign="center" halign="center"/>
+		<label posn="-88 47 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3"/>
+		<label posn="-87 37 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
+		<label posn="-86 30 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
+		<label posn="-83 25 1" sizen="116 10" text="$aafShow/Hide what values means. (Best Time, Previous time, Respawns, Runs, CP Progress, Best Theoretical, All Best Theoretical)" textsize="2" autonewline="1"/>
+		<label posn="37 25 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
+		<label posn="-86 14 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
+		<label posn="-83 9 1" sizen="116 10" text="$aafShow/Hide extra stuff : Previous CP Info and Next CP Info" textsize="2" autonewline="1"/>
+		<label posn="37 9 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
+		<label posn="-87 -4 1" sizen="70 6" text="Other Options" style="TextTitle3" textsize="2"/>
+		<label posn="-86 -10 1" sizen="69 5" text="Respawn behaviour key" textsize="2"/>
+		<label posn="37 -14 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnKeyDefault"/>
+		<label posn="-83 -15 1" sizen="116 10" text="$aafRespawn at start or at last CP passed. Rebind key." textsize="2" autonewline="1"/>
+		<label posn="-90 -36 1" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
 		</frame>
 	""";
 }
@@ -1265,13 +1234,15 @@ Void InitInterface(){
 	UIManager.UIAll.UILayers.add(G_OptionsMenu);
 
 	Chrono::Load();
+
+	SM::SetupDefaultVisibility();
 }
 
 Void InitObstacle(){
 	
 	// Set mode options
 	UseClans = False;
-	UseAllies = False;
+
 	UsePvPCollisions = False;
 	UsePvPWeapons = False;
 	UseSameWallJump = True;
@@ -1286,6 +1257,10 @@ Void InitObstacle(){
 	G_StartsTime = Integer[Ident];
 	G_BestChecksInt = Integer[Integer];
 	G_BestChecks = Integer[Integer];
+
+	foreach(Player, Players){
+		G_Finish[Player.Id] = 0;
+	}
 
 	//Colors
 	foreach(Base, MapBases){
@@ -1341,6 +1316,10 @@ Void InitObstacle(){
 }
 
 Void UpdatePlayersObstacle(){
+	declare netwrite Integer Net_PlayersCount for Teams[0];
+
+	Net_PlayersCount = AllPlayers.count;
+
 	//Players
 	foreach(Player, AllPlayers){
 		if(!Player.RequestsSpectate){				
@@ -1388,25 +1367,7 @@ Void UpdatePlayersObstacle(){
 		
 		//Respawns + Restarts
 		declare UI = UIManager.GetUI(Player);
-		
-		//Respawn
-		declare LastRespawnTime for Player = 0;
-		declare netread RespawnTime for UI = 0;
-		
-		if (RespawnTime > LastRespawnTime) {
-			LastRespawnTime = RespawnTime;
-			RestartPlayer(Player, False);
-		}
-		
-		//Restart
-		declare LastRestartTime for Player = 0;
-		declare netread RestartTime for UI = 0;
-		
-		if (RestartTime > LastRestartTime) {
-			LastRestartTime = RestartTime;
-			RestartPlayer(Player, True);
-		}
-		
+				
 		UpdatePlayerInterface(Player);
 	}
 	
@@ -1415,10 +1376,11 @@ Void UpdatePlayersObstacle(){
 		switch(Event.Type){
 			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
 				Discard(Event);
+				RestartPlayer(Event.Player);
 			}
 			case CSmModeEvent::EType::OnArmorEmpty : {
 				Discard(Event);
-				RestartPlayer(Event.Victim, False);
+				RestartPlayer(Event.Victim);
 			}
 		}
 	}

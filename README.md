@@ -12,10 +12,7 @@ Features :
 TODO List
 
 Mode :
-- [HIGH] Fix Ammo when Restarting after passing checkpoint
 - [HIGH] See spectator count
-- [HIGH] Show nicknames
-- [HIGH] Fix User default binding keys
 - [MID] New script for editor
 - [LOW] For spec, we can see who spec you, and he can see what key is pressing. /!\ Heavy resources use /!\
 - [LOW] change color if stamina is illimited, Sound if regeneration, Sound for stamina blocked, and no thing if none.
