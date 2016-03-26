@@ -8,15 +8,22 @@ Features :
 - Retro-compatibility with old maps
 - Best theorical time system
 
+
 TODO List
 
 Mode :
+- [HIGH] Fix Ammo when Restarting after passing checkpoint
+- [HIGH] See spectator count
+- [HIGH] Show nicknames
+- [HIGH] Fix User default binding keys
 - [MID] New script for editor
 - [LOW] For spec, we can see who spec you, and he can see what key is pressing. /!\ Heavy resources use /!\
-- [LOW] change color if stamina is illimited, soud if regeneration, soud for stamina blocked, and no think if none.
-- [LOW] add a sond if stamina = 0
+- [LOW] change color if stamina is illimited, Sound if regeneration, Sound for stamina blocked, and no thing if none.
+- [LOW] add a Sound if stamina = 0
 
 MapType :
+- [MED] Add no regen ammo option
+- [MED] Add negative regen ammo option : Infinite but decrease if no use.
 - [LOW] Add some credits
 - [LOW] More animation about windows, and better interface of windows.
 
