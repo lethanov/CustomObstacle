@@ -110,7 +110,8 @@ Void diplayManialink_EditAnchorManialink()
 				(Page.GetFirstChild("Normal") as CMlLabel),
 				(Page.GetFirstChild("Refill") as CMlLabel),			
 				(Page.GetFirstChild("Infinite") as CMlLabel),
-				(Page.GetFirstChild("Stamina Regeneration") as CMlLabel)
+				(Page.GetFirstChild("Stamina Regeneration") as CMlLabel),
+				(Page.GetFirstChild("Ammo Regeneration") as CMlLabel)
 				];
 					
 			declare Boolean Finish for Page;
@@ -122,74 +123,83 @@ Void diplayManialink_EditAnchorManialink()
 			declare Integer Ammo;
 			declare	Integer Stamina;	
 			declare Integer StaminaRegen;
+			declare Integer AmmoRegen;
 									
 			declare AnchorDetails = TextLib::Split("|", AnchorTag);
 			
 			Entries[0].Value = AnchorOrder;
 
-			if(AnchorDetails.count > 1){
+			if(AnchorDetails.count == 5){
 				Entries[1].Value = AnchorDetails[1];
 				Stamina = TextLib::ToInteger(AnchorDetails[2]);
 				StaminaRegen = TextLib::ToInteger(AnchorDetails[3]);
+				AmmoRegen = TextLib::ToInteger(AnchorDetails[4]);
 			} else {
 				Stamina = 0;
 				StaminaRegen = 1;
-			}
-			
-			if(Stamina == 0){
-				Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
-				Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
-				Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
-			}
-			if(Stamina == 1){
-				Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
-				Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
-				Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
-			}
-			if(Stamina == 2){
-				Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
-				Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
-				Buttons[2].Value = "$fff" ^ Buttons[2].ControlId;
-			}
-			
-			if(StaminaRegen == 1){
-				Buttons[3].Value = Buttons[3].ControlId ^ " = Yes";
-			} else {
-				Buttons[3].Value = Buttons[3].ControlId ^ " = No";
+				AmmoRegen = 1;
 			}
 			
 			Finish = False;	
 			while(!Finish) {
 				yield;
+				if(Stamina == 0){
+					Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
+					Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+					Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+				}
+				if(Stamina == 1){
+					Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+					Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
+					Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+				}
+				if(Stamina == 2){
+					Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
+					Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
+					Buttons[2].Value = "$fff" ^ Buttons[2].ControlId;
+				}
 				
+				if(StaminaRegen == 1){
+					Buttons[3].Value = "Stamina regen : Yes";
+				} else {
+					Buttons[3].Value = "Stamina regen : No";
+				}
+
+				if(AmmoRegen == 1){
+					Buttons[4].Value = "Ammo regen : Yes";
+				} else {
+					Buttons[4].Value = "Ammo regen : No";
+				}
+								
 				foreach(Event in PendingEvents) {
 					switch(Event.Type){
 						case CMlEvent::Type::MouseClick : {
 							if (Event.ControlId == "Normal") {
 								Stamina = 0;
-								Buttons[0].Value = "$fff" ^ Buttons[0].ControlId;
-								Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
-								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;
+								
 							}
 							if (Event.ControlId == "Refill") {
 								Stamina = 1;
-								Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
-								Buttons[1].Value = "$fff" ^ Buttons[1].ControlId;
-								Buttons[2].Value = "$000" ^ Buttons[2].ControlId;			
+										
 							}
 							if(Event.ControlId == "Infinite"){
 								Stamina = 2;
-								Buttons[0].Value = "$000" ^ Buttons[0].ControlId;
-								Buttons[1].Value = "$000" ^ Buttons[1].ControlId;
-								Buttons[2].Value = "$fff" ^ Buttons[2].ControlId;		
+					
 							}
 							if(Event.ControlId == "Stamina Regeneration"){
 								if(StaminaRegen == 0){
 									StaminaRegen = 1;
-									Buttons[3].Value = Buttons[3].ControlId ^ " = Yes";
+									
 								} else if (StaminaRegen == 1){
 									StaminaRegen = 0;
-									Buttons[3].Value = Buttons[3].ControlId ^ " = No";
+								}
+							}
+							if(Event.ControlId == "Ammo Regeneration"){
+								if(AmmoRegen == 0){
+									AmmoRegen = 1;
+									
+								} else if (AmmoRegen == 1){
+									AmmoRegen = 0;
 								}
 							}
 							if (Event.ControlId == "back") {
@@ -210,10 +220,11 @@ Void diplayManialink_EditAnchorManialink()
 			}
 						
 			//Values default ?
-			if(Ammo == 4 && Stamina == 0 && StaminaRegen == 1){
+			if(Ammo == 4 && Stamina == 0 && StaminaRegen == 1 && AmmoRegen == 1){
+				log("oiseau");
 				AnchorTag = AnchorDetails[0];
 			} else {
-				AnchorTag = AnchorDetails[0] ^ "|" ^ TextLib::ToText(Ammo) ^ "|" ^ TextLib::ToText(Stamina) ^ "|" ^ TextLib::ToText(StaminaRegen);
+				AnchorTag = AnchorDetails[0] ^ "|" ^ TextLib::ToText(Ammo) ^ "|" ^ TextLib::ToText(Stamina) ^ "|" ^ TextLib::ToText(StaminaRegen) ^ "|" ^ TextLib::ToText(AmmoRegen);
 			}
 			
 			AnchorOrder = Entries[0].Value;
@@ -221,23 +232,18 @@ Void diplayManialink_EditAnchorManialink()
 	--></script>
 	<frame posn="{{{getPosiAnim(-50.0)}}} -10">
 		<quad posn="-99 39 0" sizen="118 84" style="Bgs1" substyle="BgHealthBar"/>
-
-		<label id="Stamina Regeneration" posn="-80 -20 0" sizen="25 7" text="Stamina Regeneration" style="CardButtonMediumXXXL" scriptevents="1"/>
-
-		<label id="Refill" posn="-58 -10 0" sizen="20 5" text="Refill" style="CardButtonMedium" scriptevents="1"/>
-		<label id="Normal" posn="-95 -10 0" sizen="20 5" text="Normal" style="CardButtonMedium" scriptevents="1"/>
-
-		<label id="Infinite" posn="-21 -10 0" sizen="20 5" text="Infinite" style="CardButtonMedium" scriptevents="1"/>
-		
-		
+		<label id="Ammo Regeneration" posn="-80 2 0" sizen="25 7" text="Ammo Regeneration" style="CardButtonMediumXXXL" scriptevents="1"/>
+		<label id="Stamina Regeneration" posn="-80 -25 0" sizen="25 7" text="Stamina Regeneration" style="CardButtonMediumXXXL" scriptevents="1"/>
+		<label id="Refill" posn="-58 -16 0" sizen="20 5" text="Refill" style="CardButtonMedium" scriptevents="1"/>
+		<label id="Normal" posn="-95 -16 0" sizen="20 5" text="Normal" style="CardButtonMedium" scriptevents="1"/>
+		<label id="Infinite" posn="-21 -16 0" sizen="20 5" text="Infinite" style="CardButtonMedium" scriptevents="1"/>
 		<label posn="-96 10 0" sizen="64 5" text="Ammo (0 to 10, above = unlimited)"/>
-		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>	
-		<entry posn="14 18 0" sizen="34 7" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="1" textformat="default" valign="center2" halign="right" focusareacolor2="$f6f"/>	
+		<label posn="-40.5 32.5 0" sizen="76 8" text="Edit Anchor" halign="center" valign="center" style="TextTitle3" textsize="4" textcolor="229bffFF"/>
+		<entry posn="14 18 0" sizen="34 7" default="0" id="checkpointOrder" style="TextButtonNavBack" scriptevents="1" textsize="1" textformat="default" valign="center2" halign="right" focusareacolor2="$f6f"/>
 		<entry posn="14 8 0" sizen="33 7" default="4" id="ammo" style="TextButtonNavBack" scriptevents="1" textsize="1" textformat="default" valign="center2" halign="right"/>
-	
 		<label posn="-96 18 0" sizen="52 10" text="Position (order) " valign="center" halign="left" autonewline="1"/>
-		<label posn="-38 -4 0" sizen="82 10" text="Stamina Options" valign="center" halign="center" autonewline="1"/>
-		<label posn="-60 -32" halign="center" style="CardMain_Quit" text="Back" scriptevents="1" id="back" sizen="92 9"/>
+		<label posn="-78 -11 0" sizen="82 10" text="Stamina Options" valign="center" halign="center" autonewline="1"/>
+		<label posn="-61 -32" halign="center" style="CardMain_Quit" text="Close" scriptevents="1" id="back" sizen="92 9"/>
 	</frame>
 	""";
 }

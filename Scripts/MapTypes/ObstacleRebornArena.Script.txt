@@ -68,7 +68,7 @@ Void UpdateValidability(){
 	declare CheckpointOrders = Integer[Integer];
 	declare CheckpointCount = 0;
 	foreach (Anchor in AnchorData) {
-		if (Anchor.Tag == "Checkpoint") {
+		if (TextLib::SubText(Anchor.Tag, 0, 10) == "Checkpoint") {
 			CheckpointCount += 1;
 			if (Anchor.Order <= 0) {
 				ValidationStatus = CSmMapType::ValidationStatus::NotValidable;
@@ -98,14 +98,14 @@ Void AutoOrderCheckpoint(){
 		declare Integer maxNumberOrderCp;
 		maxNumberOrderCp = 0;
 		foreach (Anchor in AnchorData) {
-			if ((Anchor.Tag == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order > maxNumberOrderCp)) {
+			if ((TextLib::SubText(Anchor.Tag, 0, 10) == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order > maxNumberOrderCp)) {
 				maxNumberOrderCp = Anchor.Order;
 			}
 		}
 		// apply max order to the next checkpoint
 		maxNumberOrderCp += 1;
 		foreach (Anchor in AnchorData) {
-			if ((Anchor.Tag == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order == 0))
+			if ((TextLib::SubText(Anchor.Tag, 0, 10) == "Checkpoint" || Anchor.Tag == "Goal") && (Anchor.Order == 0))
 			{
 				Anchor.Order = maxNumberOrderCp;
 			}

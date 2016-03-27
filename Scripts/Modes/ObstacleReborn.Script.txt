@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "18"
+#Const Version             "19"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 18
+#Const C_Revision 19
 
 // ---------------------------------- //
 // Globales
@@ -185,114 +185,108 @@ Void SendNotice(CSmPlayer _Player, Text _Message){
 	UI.SendNotice(_Message, CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Silence, 0);
 }
 
-//Change stamina
-Void ChangeStamina(CSmPlayer _Player){
-	if(_Player.CapturedLandmark != Null){
-		declare AnchorDetails = TextLib::Split("|", _Player.CapturedLandmark.Tag);
-		
-		if(AnchorDetails[0] == "Checkpoint"){
-			//Default
-			if(AnchorDetails.count == 1){
-				if(_Player.StaminaGain != 1.0 || G_Stamina[_Player.Id]){
-					G_Stamina[_Player.Id] = False;
-					_Player.StaminaGain = 1.0;
-				}
-			} else {
-				if(TextLib::ToInteger(AnchorDetails[2]) == 2 && !G_Stamina[_Player.Id]){
-					G_Stamina[_Player.Id] = True;
-					SendNotice(_Player, "$afaInfinite stamina.");
-				}
-				if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.Stamina < 3600){
-					SendNotice(_Player, "$aafStamina refilled.");
-					_Player.Stamina = 3600;
-					G_Stamina[_Player.Id] = False;
-				}
-				if(TextLib::ToInteger(AnchorDetails[2]) == 0 && G_Stamina[_Player.Id]){
-					G_Stamina[_Player.Id] = False;
-				}
-				if(TextLib::ToInteger(AnchorDetails[3]) == 0 && _Player.StaminaGain != 0.0){
-					_Player.StaminaGain = 0.0;
-					SendNotice(_Player, "$aafNo Stamina gain.");
-				}
-				if(TextLib::ToInteger(AnchorDetails[3]) == 1 && _Player.StaminaGain != 1.0){
-					_Player.StaminaGain = 1.0;
-					SendNotice(_Player, "$aafStamina gain.");
-				}
-				
-			}
-		}
-	} else {
-		_Player.StaminaGain = 1.0;
-		G_Stamina[_Player.Id] = False;
-	}
-}
-
 //Change weapon on check or spawn
-Void ChangeAmmo(CSmPlayer _Player){
+Void ChangeAmmoAndStamina(CSmPlayer _Player, Boolean _Respawn){
 	//Oncheckpoint
-	if(_Player.CapturedLandmark != Null){
-		declare AnchorDetails = TextLib::Split("|", _Player.CapturedLandmark.Tag);
-		
-		if(AnchorDetails[0] == "Checkpoint"){
-			//Default
-			if(AnchorDetails.count == 1){
-				if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
-					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
-					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-					_Player.AmmoGain = 1.0;
-					SendNotice(_Player, "Weapon ammo set to normal.");
-				}
+	if(G_CheckpointNext.existskey(_Player.Id)){
+		if(G_CheckpointNext[_Player.Id] > 0){
+			declare Text CheckpointTag;
+			if(!_Respawn){
+				CheckpointTag = G_Checkpoints[G_CheckpointNext[_Player.Id]].Tag;
 			} else {
-				if(TextLib::ToInteger(AnchorDetails[1]) == 11){ //Unlimited ammo !
-					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 20){
-						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 20);
-						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 20);
-						_Player.AmmoGain = 10.0;
-						SendNotice(_Player, "Weapon ammo set to unlimited.");
+				CheckpointTag = G_Checkpoints[G_CheckpointNext[_Player.Id] - 1].Tag;
+			}
+			declare AnchorDetails = TextLib::Split("|", CheckpointTag);
+		
+			if(AnchorDetails[0] == "Checkpoint"){
+				//Default
+				if(AnchorDetails.count == 1){
+					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
+						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
+						_Player.AmmoGain = 1.0;
+						_Player.StaminaGain = 1.0;
+						G_Stamina[_Player.Id] = False;
+						SendNotice(_Player, "Weapon ammo set to normal.");
 					}
 				} else {
-					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != TextLib::ToInteger(AnchorDetails[1])){
-						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+					if(TextLib::ToInteger(AnchorDetails[1]) == 11){ //Unlimited ammo !
+						if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 20){
+							SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 20);
+							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 20);
+							_Player.AmmoGain = 10.0;
+							SendNotice(_Player, "Weapon ammo set to unlimited.");
+						}
+					} else {
 						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
-						_Player.AmmoGain = 1.0;
 						SendNotice(_Player, "Weapon ammo set to " ^ TextLib::ToInteger(AnchorDetails[1]) ^ ".");
+						if(TextLib::ToInteger(AnchorDetails[4]) == 1){
+							_Player.AmmoGain = 1.0;
+							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+						} else {
+							_Player.AmmoGain = 0.0;
+							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+							SendNotice(_Player, "No Ammo regeneration on this CP");
+						}
+						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
+					}
+					if(TextLib::ToInteger(AnchorDetails[2]) == 2 && !G_Stamina[_Player.Id]){
+					G_Stamina[_Player.Id] = True;
+					SendNotice(_Player, "$afaInfinite stamina.");
+					}
+					if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.Stamina < 3600){
+						SendNotice(_Player, "$aafStamina refilled.");
+						_Player.Stamina = 3600;
+						G_Stamina[_Player.Id] = False;
+					}
+					if(TextLib::ToInteger(AnchorDetails[2]) == 0 && G_Stamina[_Player.Id]){
+						G_Stamina[_Player.Id] = False;
+					}
+					if(TextLib::ToInteger(AnchorDetails[3]) == 0 && _Player.StaminaGain != 0.0){
+						_Player.StaminaGain = 0.0;
+						SendNotice(_Player, "$aafNo Stamina gain.");
+					}
+					if(TextLib::ToInteger(AnchorDetails[3]) == 1 && _Player.StaminaGain != 1.0){
+						_Player.StaminaGain = 1.0;
+						SendNotice(_Player, "$aafStamina gain.");
 					}
 				}
+			} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
+				if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
+					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
+					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
+					_Player.AmmoGain = 10.0;
+					SendNotice(_Player, "Weapon ammo set to unlimited.");
+				} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
+					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
+					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
+					_Player.AmmoGain = 0.0;
+					SendNotice(_Player, "No ammo.");
+				}
+			} else {
+				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
+				_Player.AmmoGain = 1.0;
+				SendNotice(_Player, "Weapon ammo set to normal.");
 			}
-		} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
-			if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
+		} else {
+			if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
+				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
 				_Player.AmmoGain = 10.0;
 				SendNotice(_Player, "Weapon ammo set to unlimited.");
-			} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
+			} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
 				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
+				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
 				_Player.AmmoGain = 0.0;
 				SendNotice(_Player, "No ammo.");
+			} else {
+				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+				_Player.AmmoGain = 1.0;
+				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 2);
+				_Player.StaminaGain = 1.0;
+				G_Stamina[_Player.Id] = False;
 			}
-		} else {
-			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
-			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-			_Player.AmmoGain = 1.0;
-			SendNotice(_Player, "Weapon ammo set to normal.");
-		}
-	} else {
-	//On Spawn
-		if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
-			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
-			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
-			_Player.AmmoGain = 10.0;
-			SendNotice(_Player, "Weapon ammo set to unlimited.");
-		} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
-			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
-			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
-			_Player.AmmoGain = 0.0;
-			SendNotice(_Player, "No ammo.");
-		} else {
-			SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
-			SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-			_Player.AmmoGain = 1.0;
 		}
 	}
 }
@@ -302,13 +296,11 @@ Void OSpawnPlayer(CSmPlayer _Player){
 	_Player.ArmorMax = 100;
 	
 	SpawnPlayer(_Player, 0, 100, G_MainSpawn.PlayerSpawn, Now);
-	ChangeStamina(_Player);
-	ChangeAmmo(_Player);
+	ChangeAmmoAndStamina(_Player, False);
 }
 
 //Restart player
 Void RestartPlayer(CSmPlayer _Player, Boolean _CustomKey){
-	ChangeAmmo(_Player);
 	declare UI <=> UIManager.GetUI(_Player);
 	declare netread RespawnAtStart for UI = False;
 	declare netread RespawnAtStartKeyDefault for UI = True;
@@ -317,53 +309,55 @@ Void RestartPlayer(CSmPlayer _Player, Boolean _CustomKey){
 		if(_CustomKey){
 			if(RespawnAtStartKeyDefault){
 				if(G_CheckpointNext[_Player.Id] > 1){
+					ChangeAmmoAndStamina(_Player, True);
 					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
 					G_Respawns[_Player.Id] += 1;
 				} else {
-					OSpawnPlayer(_Player);
 					Chrono::Stop(_Player.Id);
 					G_CheckpointNext[_Player.Id] = 0;
 					Chrono::Reset(_Player.Id);
 					G_StartsTime[_Player.Id] = 0;
 					G_Respawns[_Player.Id] = 0;
+					OSpawnPlayer(_Player);
 				}
 			} else {
-				OSpawnPlayer(_Player);
 				Chrono::Stop(_Player.Id);
 				G_CheckpointNext[_Player.Id] = 0;
 				Chrono::Reset(_Player.Id);
 				G_StartsTime[_Player.Id] = 0;
 				G_Respawns[_Player.Id] = 0;
+				OSpawnPlayer(_Player);
 			}
 		} else {
 			if(!RespawnAtStartKeyDefault){
 				if(G_CheckpointNext[_Player.Id] > 1){
+					ChangeAmmoAndStamina(_Player, True);
 					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
 					G_Respawns[_Player.Id] += 1;
 				} else {
-					OSpawnPlayer(_Player);
 					Chrono::Stop(_Player.Id);
 					G_CheckpointNext[_Player.Id] = 0;
 					Chrono::Reset(_Player.Id);
 					G_StartsTime[_Player.Id] = 0;
 					G_Respawns[_Player.Id] = 0;
+					OSpawnPlayer(_Player);
 				}
 			} else {
-				OSpawnPlayer(_Player);
 				Chrono::Stop(_Player.Id);
 				G_CheckpointNext[_Player.Id] = 0;
 				Chrono::Reset(_Player.Id);
 				G_StartsTime[_Player.Id] = 0;
 				G_Respawns[_Player.Id] = 0;
+				OSpawnPlayer(_Player);
 			}
 		}
 	} else {
-		OSpawnPlayer(_Player);
 		Chrono::Stop(_Player.Id);
 		G_CheckpointNext[_Player.Id] = 0;
 		Chrono::Reset(_Player.Id);
 		G_StartsTime[_Player.Id] = 0;
 		G_Respawns[_Player.Id] = 0;
+		OSpawnPlayer(_Player);
 	}
 }
 
@@ -1358,6 +1352,8 @@ Void InitObstacle(){
 		Base.Clan = 1;
 		Base.IsActive = True;
 	}
+
+	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
 	
 	//Get Spawns
 	foreach(Spawn, MapLandmarks_PlayerSpawn){
@@ -1411,6 +1407,7 @@ Void UpdatePlayersObstacle(){
 
 	Net_PlayersCount = AllPlayers.count;
 
+
 	//Players
 	foreach(Player, AllPlayers){
 		if(!Player.RequestsSpectate){				
@@ -1440,8 +1437,7 @@ Void UpdatePlayersObstacle(){
 						if(G_CheckpointNext[Player.Id] == G_CheckpointsCount){
 							FinishEvent(Player);
 						} else {
-							ChangeAmmo(Player);
-							ChangeStamina(Player);
+							ChangeAmmoAndStamina(Player, False);
 							CheckpointEvent(Player);
 						}
 					}
