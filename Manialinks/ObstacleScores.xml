@@ -1,0 +1,89 @@
+<frame id="Spectators">
+	<quad posn="-157 17 0" sizen="9 8" bgcolor="FFFA" style="Icons64x64_1" substyle="Camera"/>
+	<label id="SpectatorsCount" posn="-146 15 0" sizen="20 5" text="5"/>
+</frame>
+<frame id="Scores" posn="0 8 0">
+	<label posn="-78 37 1" sizen="133 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1"/>
+	<label posn="-78 33 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
+	<quad posn="0 -13.5 0" sizen="160 104" bgcolor="101010AA" halign="center" valign="center"/>
+	<frame posn="0 2 0">
+		<label posn="-75 24 1" sizen="69 5" text="NickName" valign="center" halign="left" textsize="2"/>
+		<label posn="4 23 1" sizen="20 5" text="CP" textsize="2" halign="center" valign="center"/>
+		<label posn="73 24 1" sizen="40 5" text="Time" valign="center" halign="right" textsize="2"/>
+		<quad posn="0 -21 0.5" sizen="158 82" bgcolor="03142AAA" halign="center" valign="center"/>
+		<frame posn="-10 25 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
+			<label id="time1" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp1" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 17 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="2" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
+			<label id="time2" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp2" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 9 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="3" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
+			<label id="time3" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp3" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 1 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="4" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
+			<label id="time4" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp4" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -7 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="5" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
+			<label id="time5" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp5" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -15 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="6" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
+			<label id="time6" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp6" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -23 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="7" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
+			<label id="time7" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp7" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -31 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="8" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec8"/>
+			<label id="time8" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp8" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -39 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="9" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec9"/>
+			<label id="time9" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp9" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<frame posn="-10 -47 1">
+			<quad posn="-68 -10 0" sizen="156 7" bgcolor="6C6C6CC6" halign="left" valign="center"/>
+			<label id="10" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+			<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec10"/>
+			<label id="time10" posn="85 -8 0" sizen="60 6" text="--;--.--" style="TextCardMedium" textsize="3" halign="right"/>
+			<label posn="14 -10 1" sizen="13 5" text="N/A" id="cp10" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
+		</frame>
+		<quad id="next" posn="72 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
+		<quad id="prev" posn="67 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
+		<label id="currentPage" posn="0 -64 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
+		<label id="players" posn="-77 -64 1" sizen="58 5" text="Players" textsize="2" valign="center"/>
+	</frame>
+</frame>

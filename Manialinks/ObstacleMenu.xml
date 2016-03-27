@@ -1,0 +1,30 @@
+<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
+<quad id="Spec" posn="-57 -54.5" sizen="12 12" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" halign="center" valign="center2"/>
+<frame id="Help">
+	<label id="info" posn="-158 84 0" sizen="83 9" text="" textsize="1" autonewline="1"/>
+	<label posn="-158 81 0" sizen="79 5" text="" textsize="1"/>
+	<label id="showOptionsMenu" posn="-158 74 0" sizen="79 4" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
+	<label id="showStatsMenu" posn="-158 68 0" sizen="79 4" autonewline="1" text="Stats" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
+</frame>
+<frame id="OptionsMenu">
+	<quad posn="0 0 0" sizen="214 98" bgcolor="000000C6" valign="center" halign="center"/>
+	<label posn="106 48 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3" halign="right"/>
+	<label posn="-105 41 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
+	<label posn="-104 36 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
+	<label posn="-103 32 1" sizen="135 10" text="$aafShow/Hide what values means. (Best Time, Previous time, Respawns, Runs, CP Progress, Best Theoretical, All Best Theoretical)" textsize="2" autonewline="1"/>
+	<label posn="47 34 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
+	<label posn="-104 22 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
+	<label posn="-103 18 1" sizen="116 10" text="$aafShow/Hide extra stuff : Previous CP Info and Next CP Info" textsize="2" autonewline="1"/>
+	<label posn="47 21 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
+	<label posn="-105 11 1" sizen="70 6" text="Other Options" style="TextTitle3" textsize="2"/>
+	<label posn="-103 6 1" sizen="69 5" text="Default respawn key function" textsize="2"/>
+	<label posn="47 2 1" sizen="20 5" text="Restart" style="CardButtonMediumXL" scriptevents="1" id="respawnKeyDefault"/>
+	<label posn="-102 2 1" sizen="137 10" text="$aafDefine what your default respawn key do : Respawn at last CP or Restart your run. (Forced to respawn at start if respawn at last CP is deactivated)" textsize="2" autonewline="1"/>
+	<label posn="-103 -8 1" sizen="69 5" text="Respawn behaviour key" textsize="2"/>
+	<label posn="47 -11 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnModeKey"/>
+	<label posn="-101 -12 1" sizen="116 10" text="$aafRespawn at start or at last CP passed. Rebind key." textsize="2" autonewline="1"/>
+	<label id="customKeyText" posn="-103 -22 1" sizen="69 5" text="Key binding for : Respawn at last CP" textsize="2"/>
+	<label posn="47 -26 1" sizen="20 5" text="E" style="CardButtonMediumXL" scriptevents="1" id="customKey"/>
+	<label id="customKeyDesc" posn="-101 -26 1" sizen="116 10" text="$aafIf you use your default respawn key to respawn at start but you still want to respawn at last CP. Which key do you want to use ?" textsize="2" autonewline="1"/>
+	<label posn="-108 -37 2" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+</frame>
