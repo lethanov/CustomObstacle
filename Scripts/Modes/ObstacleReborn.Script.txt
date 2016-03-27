@@ -7,7 +7,7 @@
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
 #Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "17"
+#Const Version             "18"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -25,7 +25,7 @@
 // ---------------------------------- //
 // Constants
 // ---------------------------------- //
-#Const C_Revision 17
+#Const C_Revision 18
 
 // ---------------------------------- //
 // Globales
@@ -307,34 +307,64 @@ Void OSpawnPlayer(CSmPlayer _Player){
 }
 
 //Restart player
-Void RestartPlayer(CSmPlayer _Player){
-
+Void RestartPlayer(CSmPlayer _Player, Boolean _CustomKey){
+	ChangeAmmo(_Player);
 	declare UI <=> UIManager.GetUI(_Player);
 	declare netread RespawnAtStart for UI = False;
+	declare netread RespawnAtStartKeyDefault for UI = True;
 
 	if(!RespawnAtStart){
-		if(G_CheckpointNext[_Player.Id] > 1){
-			
-			
-			RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
-			G_Respawns[_Player.Id] += 1;
+		if(_CustomKey){
+			if(RespawnAtStartKeyDefault){
+				if(G_CheckpointNext[_Player.Id] > 1){
+					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
+					G_Respawns[_Player.Id] += 1;
+				} else {
+					OSpawnPlayer(_Player);
+					Chrono::Stop(_Player.Id);
+					G_CheckpointNext[_Player.Id] = 0;
+					Chrono::Reset(_Player.Id);
+					G_StartsTime[_Player.Id] = 0;
+					G_Respawns[_Player.Id] = 0;
+				}
+			} else {
+				OSpawnPlayer(_Player);
+				Chrono::Stop(_Player.Id);
+				G_CheckpointNext[_Player.Id] = 0;
+				Chrono::Reset(_Player.Id);
+				G_StartsTime[_Player.Id] = 0;
+				G_Respawns[_Player.Id] = 0;
+			}
 		} else {
-
-			OSpawnPlayer(_Player);
-			Chrono::Stop(_Player.Id);
-			G_CheckpointNext[_Player.Id] = 0;
-			Chrono::Reset(_Player.Id);
-			G_StartsTime[_Player.Id] = 0;
-			G_Respawns[_Player.Id] = 0;
+			if(!RespawnAtStartKeyDefault){
+				if(G_CheckpointNext[_Player.Id] > 1){
+					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
+					G_Respawns[_Player.Id] += 1;
+				} else {
+					OSpawnPlayer(_Player);
+					Chrono::Stop(_Player.Id);
+					G_CheckpointNext[_Player.Id] = 0;
+					Chrono::Reset(_Player.Id);
+					G_StartsTime[_Player.Id] = 0;
+					G_Respawns[_Player.Id] = 0;
+				}
+			} else {
+				OSpawnPlayer(_Player);
+				Chrono::Stop(_Player.Id);
+				G_CheckpointNext[_Player.Id] = 0;
+				Chrono::Reset(_Player.Id);
+				G_StartsTime[_Player.Id] = 0;
+				G_Respawns[_Player.Id] = 0;
+			}
 		}
-		return;
+	} else {
+		OSpawnPlayer(_Player);
+		Chrono::Stop(_Player.Id);
+		G_CheckpointNext[_Player.Id] = 0;
+		Chrono::Reset(_Player.Id);
+		G_StartsTime[_Player.Id] = 0;
+		G_Respawns[_Player.Id] = 0;
 	}
-	OSpawnPlayer(_Player);
-	Chrono::Stop(_Player.Id);
-	G_CheckpointNext[_Player.Id] = 0;
-	Chrono::Reset(_Player.Id);
-	G_StartsTime[_Player.Id] = 0;
-	G_Respawns[_Player.Id] = 0;
 }
 
 //Update Player Manialink Interface
@@ -670,7 +700,7 @@ Void CheckpointManage(CSmPlayer _Player){
 		}
 	} else {
 		G_BestChecksInt[G_CheckpointNext[_Player.Id]] = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
-	}	
+	}
 }
 
 //When a player passes checkoint
@@ -764,14 +794,18 @@ Void FinishEvent(CSmPlayer _Player){
 	SendNotice(_Player, "Run completed.");
 	UpdateScoresTable();
 	G_FinishAny = True;
+	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
 }
 
 Text CreateUIEventManager(){
 	declare Manialink = """
 		<script><!--
 
-		declare netwrite ShowOptionsMenu for UI = 0;
-		declare Text RespawnKeyToggle for UI;
+		declare ShowOptionsMenu for UI = 0;
+		declare netwrite RespawnKeyToggle for UI = "F4";
+
+		declare netwrite CustomKeyTime for UI = 0;
+		declare netwrite CustomKey for UI = "E";
 
 		declare netwrite RespawnAtStart for UI = False;
 
@@ -788,6 +822,9 @@ Text CreateUIEventManager(){
 					case CMlEvent::Type::KeyPress: {
 						if(Event.KeyName == RespawnKeyToggle){
 							RespawnAtStart = !RespawnAtStart;
+						}
+						if(Event.KeyName == CustomKey){
+							CustomKeyTime = ArenaNow;
 						}
 					}
 				}
@@ -1118,20 +1155,30 @@ Void CreateUIOptionsMenu(){
 		<script><!--
 		declare ShowOptionsMenu for UI = 0;
 
-		declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame)];
+		declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame),(Page.GetFirstChild("Help") as CMlFrame)];
 
 		declare Labels = [
 			(Page.GetFirstChild("showOptionsMenu") as CMlLabel),
 			(Page.GetFirstChild("showHud") as CMlLabel),
 			(Page.GetFirstChild("extraHud") as CMlLabel),
-			(Page.GetFirstChild("respawnKeyDefault") as CMlLabel)
+			(Page.GetFirstChild("respawnKeyDefault") as CMlLabel),
+			(Page.GetFirstChild("respawnModeKey") as CMlLabel),
+			(Page.GetFirstChild("customKeyText") as CMlLabel),
+			(Page.GetFirstChild("customKeyDesc") as CMlLabel),
+			(Page.GetFirstChild("customKey") as CMlLabel),
+			(Page.GetFirstChild("info") as CMlLabel)
 		];
 
 		declare netwrite SwitchFullHud for UI = False;
 		declare netwrite SwitchExtraHud for UI = False;
+		declare SwitchHelp for UI = True;
 
 		declare RespawnKeyToggleEdit for UI = False;
-		declare RespawnKeyToggle for UI = "F4";		
+		declare CustomKeyEdit for UI = False;
+
+		declare netwrite RespawnKeyToggle for UI = "F4";
+		declare CustomKey for UI = "E";
+		declare netwrite RespawnAtStartKeyDefault for UI = True;
 
 		while (True) {
 			if(Frame[0].Visible && ShowOptionsMenu == 0){
@@ -1142,8 +1189,14 @@ Void CreateUIOptionsMenu(){
 				Frame[0].Visible = True;
 				Labels[0].Visible = False;
 			}
+			if(SwitchHelp){
+				Frame[1].Visible = True;
+			} else {
+				Frame[1].Visible = False;
+			}
+
 			if(SwitchFullHud){
-			Labels[1].Value = "Yes";
+				Labels[1].Value = "Yes";
 			} else {
 				Labels[1].Value = "No";
 			}
@@ -1152,11 +1205,27 @@ Void CreateUIOptionsMenu(){
 			} else {
 				Labels[2].Value = "No";
 			}
-			if(!RespawnKeyToggleEdit){
-				Labels[3].Value = RespawnKeyToggle;
+			if(RespawnAtStartKeyDefault){
+				Labels[3].Value = "Restart";
+				Labels[5].Value = "Key binding for : $afaRespawn at last CP";
+				Labels[6].Value = "$aafIf you use your default respawn key to respawn at start but you still want to respawn at last CP. Which key do you want to use ?";
+				Labels[8].Value = "Press your user respawn key to Restart, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to respawn at Last CP. Hold Alt to activate mouse / Press H to switch on/off this stuff.";
 			} else {
-				Labels[3].Value = "Press new key";
-			}		
+				Labels[3].Value = "Respawn at last CP";
+				Labels[5].Value = "Key binding for : $faaRestart";
+				Labels[6].Value = "$aafIf you use your default respawn key to respawn at last cp but you still want to respawn at start. Which key do you want to use ?";
+				Labels[8].Value = "Press your user respawn key to Respawn at Last CP, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to restart. Hold Alt to activate mouse / Press H to switch on/off this stuff.";
+			}
+			if(!RespawnKeyToggleEdit){
+				Labels[4].Value = RespawnKeyToggle;
+			} else {
+				Labels[4].Value = "Press new key";
+			}
+			if(!CustomKeyEdit){
+				Labels[7].Value = CustomKey;
+			} else {
+				Labels[7].Value = "Press new key";
+			}			
 			yield;
 			// Process events
 			foreach (Event in PendingEvents) {
@@ -1180,8 +1249,13 @@ Void CreateUIOptionsMenu(){
 							SwitchExtraHud = !SwitchExtraHud;
 						}
 						if(Event.ControlId == "respawnKeyDefault"){
+							RespawnAtStartKeyDefault = !RespawnAtStartKeyDefault;
+						}
+						if(Event.ControlId == "respawnModeKey"){
 							RespawnKeyToggleEdit = True;
-
+						}
+						if(Event.ControlId == "customKey"){
+							CustomKeyEdit = True;
 						}
 					}
 					case CMlEvent::Type::KeyPress: {
@@ -1189,28 +1263,45 @@ Void CreateUIOptionsMenu(){
 							RespawnKeyToggleEdit = False;
 							RespawnKeyToggle = Event.KeyName;
 						}
+						if(CustomKeyEdit){
+							CustomKeyEdit = False;
+							CustomKey = Event.KeyName;
+						}
+						if(Event.KeyName == "H"){
+							SwitchHelp = !SwitchHelp;
+						}
 					}
 				}
 			}
 		}
 		--></script>
 		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
-		<label id="showOptionsMenu" posn="-159 82 0" sizen="83 5" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonMedium"/>
+		<frame id="Help">
+			<label id="info" posn="-158 84 0" sizen="83 9" text="" textsize="1" autonewline="1"/>
+			<label posn="-158 81 0" sizen="79 5" text="" textsize="1"/>
+			<label id="showOptionsMenu" posn="-158 74 0" sizen="79 4" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
+		</frame>
 		<frame id="OptionsMenu">
-		<quad posn="0 0 0" sizen="181 98" bgcolor="000000C6" valign="center" halign="center"/>
-		<label posn="-88 47 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3"/>
-		<label posn="-87 37 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
-		<label posn="-86 30 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
-		<label posn="-83 25 1" sizen="116 10" text="$aafShow/Hide what values means. (Best Time, Previous time, Respawns, Runs, CP Progress, Best Theoretical, All Best Theoretical)" textsize="2" autonewline="1"/>
-		<label posn="37 25 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
-		<label posn="-86 14 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
-		<label posn="-83 9 1" sizen="116 10" text="$aafShow/Hide extra stuff : Previous CP Info and Next CP Info" textsize="2" autonewline="1"/>
-		<label posn="37 9 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
-		<label posn="-87 -4 1" sizen="70 6" text="Other Options" style="TextTitle3" textsize="2"/>
-		<label posn="-86 -10 1" sizen="69 5" text="Respawn behaviour key" textsize="2"/>
-		<label posn="37 -14 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnKeyDefault"/>
-		<label posn="-83 -15 1" sizen="116 10" text="$aafRespawn at start or at last CP passed. Rebind key." textsize="2" autonewline="1"/>
-		<label posn="-90 -36 1" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+			<quad posn="0 0 0" sizen="214 98" bgcolor="000000C6" valign="center" halign="center"/>
+			<label posn="106 48 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3" halign="right"/>
+			<label posn="-105 41 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
+			<label posn="-104 36 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
+			<label posn="-103 32 1" sizen="135 10" text="$aafShow/Hide what values means. (Best Time, Previous time, Respawns, Runs, CP Progress, Best Theoretical, All Best Theoretical)" textsize="2" autonewline="1"/>
+			<label posn="47 34 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
+			<label posn="-104 22 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
+			<label posn="-103 18 1" sizen="116 10" text="$aafShow/Hide extra stuff : Previous CP Info and Next CP Info" textsize="2" autonewline="1"/>
+			<label posn="47 21 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
+			<label posn="-105 11 1" sizen="70 6" text="Other Options" style="TextTitle3" textsize="2"/>
+			<label posn="-103 6 1" sizen="69 5" text="Default respawn key function" textsize="2"/>
+			<label posn="47 2 1" sizen="20 5" text="Restart" style="CardButtonMediumXL" scriptevents="1" id="respawnKeyDefault"/>
+			<label posn="-102 2 1" sizen="137 10" text="$aafDefine what your default respawn key do : Respawn at last CP or Restart your run. (Forced to respawn at start if respawn at last CP is deactivated)" textsize="2" autonewline="1"/>
+			<label posn="-103 -8 1" sizen="69 5" text="Respawn behaviour key" textsize="2"/>
+			<label posn="47 -11 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnModeKey"/>
+			<label posn="-101 -12 1" sizen="116 10" text="$aafRespawn at start or at last CP passed. Rebind key." textsize="2" autonewline="1"/>
+			<label id="customKeyText" posn="-103 -22 1" sizen="69 5" text="Key binding for : Respawn at last CP" textsize="2"/>
+			<label posn="47 -26 1" sizen="20 5" text="E" style="CardButtonMediumXL" scriptevents="1" id="customKey"/>
+			<label id="customKeyDesc" posn="-101 -26 1" sizen="116 10" text="$aafIf you use your default respawn key to respawn at start but you still want to respawn at last CP. Which key do you want to use ?" textsize="2" autonewline="1"/>
+			<label posn="-108 -37 2" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
 		</frame>
 	""";
 }
@@ -1264,7 +1355,7 @@ Void InitObstacle(){
 
 	//Colors
 	foreach(Base, MapBases){
-		Base.Clan = 0;
+		Base.Clan = 1;
 		Base.IsActive = True;
 	}
 	
@@ -1365,9 +1456,17 @@ Void UpdatePlayersObstacle(){
 		}
 		
 		
-		//Respawns + Restarts
+		//Custom key use
 		declare UI = UIManager.GetUI(Player);
-				
+		
+		declare LastCustomKeyTime for Player = 0;
+		declare netread CustomKeyTime for UI = 0;
+		
+		if (CustomKeyTime > LastCustomKeyTime) {
+			RestartPlayer(Player, True);
+			LastCustomKeyTime = CustomKeyTime;
+		}
+
 		UpdatePlayerInterface(Player);
 	}
 	
@@ -1376,11 +1475,11 @@ Void UpdatePlayersObstacle(){
 		switch(Event.Type){
 			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
 				Discard(Event);
-				RestartPlayer(Event.Player);
+				RestartPlayer(Event.Player, False);
 			}
 			case CSmModeEvent::EType::OnArmorEmpty : {
 				Discard(Event);
-				RestartPlayer(Event.Victim);
+				RestartPlayer(Event.Victim, True);
 			}
 		}
 	}
