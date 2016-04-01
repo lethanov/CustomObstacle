@@ -100,6 +100,20 @@ Integer GetCheckpointObjective(Ident _PlayerId){
 	return _CheckpointObjective;
 }
 
+Integer GetRespawnsCount(Ident _PlayerId){
+	declare _RespawnsCount = -1;
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer Respawns for Player;
+
+			_RespawnsCount = Respawns;
+		}
+	}
+
+	return _RespawnsCount;
+}
+
 Void UpdateMarkers(Ident _PlayerId){
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
@@ -207,21 +221,20 @@ Integer GetPlace(Ident _PlayerId){
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Integer[] Times;
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer LastTime for Player;
+
+			Times.add(LastTime);
+
 			foreach(OtherPlayer, Players){
-				declare Integer LastTime for OtherPlayer;
 				declare Integer BestTime for OtherPlayer;
 
-				if(OtherPlayer.Id != _PlayerId){
+				if(BestTime != -1 && OtherPlayer.Id != _PlayerId){
 					Times.add(BestTime);
-				} else {
-					Times.add(LastTime);
 				}
 			}
 
 			Times = Times.sort();
-
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer LastTime for Player;
 
 			value = Times.keyof(LastTime);
 		}
@@ -289,6 +302,18 @@ Void SendUpdateForManialink(Ident _PlayerId){
 			Theorical = CalculateTheorical(_PlayerId);
 			BestTheorical = CalculateBestTheorical();
 
+			declare Integer SpecCount for Player;
+
+			SpecCount = 0;
+			foreach(OtherPlayer, AllPlayers){
+				if(OtherPlayer.Login != Player.Login){
+					declare UI2 <=> UIManager.GetUI(OtherPlayer);
+					if(UI2.SpectatorForcedTarget == Player.Id){
+						SpecCount += 1;
+					}
+				}
+			}
+
 			//For manialink communication
 
 			//Interface
@@ -311,6 +336,7 @@ Void SendUpdateForManialink(Ident _PlayerId){
 			declare netwrite Integer Net_Place for UI;
 			declare netwrite Integer Net_Theorical for UI;
 			declare netwrite Boolean Net_TrueSpectate for UI;
+			declare netwrite Integer Net_SpecCount for UI;
 
 			declare netwrite Integer Net_BestTheorical for Teams[0];
 
@@ -335,6 +361,7 @@ Void SendUpdateForManialink(Ident _PlayerId){
 			Net_Theorical = Theorical;
 			Net_BestTheorical = BestTheorical;
 			Net_TrueSpectate = TrueSpectate;
+			Net_SpecCount = SpecCount;
 
 			//Score table
 			declare netwrite Text[] Net_PlayersTimeData for Teams[0];
@@ -359,12 +386,12 @@ Void SendUpdateForManialink(Ident _PlayerId){
 
 			foreach(Time, Times){
 				declare Player = Players[Times.keyof(Time)];
-				declare data = Player.Login ^ "|" ^ Time ^ "|" ^ GetCheckpointProgress(Player.Id);
+				declare data = Player.Login ^ "|" ^ Time ^ "|" ^ GetCheckpointProgress(Player.Id) ^ "|" ^ GetRespawnsCount(Player.Id);
 				Net_PlayersTimeData.add(data);
 			}
 
 			foreach(OtherPlayer, PlayersWithNoTime){
-				declare data = OtherPlayer.Login ^ "|" ^ -1 ^ "|" ^ GetCheckpointProgress(OtherPlayer.Id);
+				declare data = OtherPlayer.Login ^ "|" ^ -1 ^ "|" ^ GetCheckpointProgress(OtherPlayer.Id) ^ "|" ^ GetRespawnsCount(Player.Id);
 				Net_PlayersTimeData.add(data);
 			}
 		}

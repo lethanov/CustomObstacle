@@ -53,8 +53,7 @@ ModeStatusMessage = Rules;
 
 SpawnScreen::CreateMapInfo();
 //Users_DestroyAllFakes();
-Users_SetNbFakeUsers(5,0);
-ForceNavMapsComputation = True;
+//Users_SetNbFakeUsers(5,0);
 InitObstacle();
 ***
 

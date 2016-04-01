@@ -114,6 +114,25 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("cp16") as CMlLabel)
 			];
 
+		declare LabelsRespawns = [
+			(Page.GetFirstChild("respawns1") as CMlLabel),
+			(Page.GetFirstChild("respawns2") as CMlLabel),
+			(Page.GetFirstChild("respawns3") as CMlLabel),
+			(Page.GetFirstChild("respawns4") as CMlLabel),
+			(Page.GetFirstChild("respawns5") as CMlLabel),
+			(Page.GetFirstChild("respawns6") as CMlLabel),
+			(Page.GetFirstChild("respawns7") as CMlLabel),
+			(Page.GetFirstChild("respawns8") as CMlLabel),
+			(Page.GetFirstChild("respawns9") as CMlLabel),
+			(Page.GetFirstChild("respawns10") as CMlLabel),
+			(Page.GetFirstChild("respawns11") as CMlLabel),
+			(Page.GetFirstChild("respawns12") as CMlLabel),
+			(Page.GetFirstChild("respawns13") as CMlLabel),
+			(Page.GetFirstChild("respawns14") as CMlLabel),
+			(Page.GetFirstChild("respawns15") as CMlLabel),
+			(Page.GetFirstChild("respawns16") as CMlLabel)
+			];
+
 
 		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
 
@@ -133,7 +152,7 @@ Text CreateScoresTable(){
 
 		while(True){
 			yield;
-			
+			SpectatorsCount[0].Value = TextLib::ToText(SpecCount);
 			if(Players.count > 16){
 				FramePagination[0].Visible = True;
 			} else {
@@ -158,9 +177,11 @@ Text CreateScoresTable(){
 					if(TextLib::ToInteger(data[1]) != -1){
 						LabelsTime[index].Value = TextLib::TimeToText(TextLib::ToInteger(data[1]), True);
 					} else {
-						LabelsTime[index].Value = "--:--,--";
+						LabelsTime[index].Value = "00:00.00";
 					}
 					LabelsCP[index].Value = data[2];
+
+					LabelsRespawns[index].Value = data[3];
 				} else {
 					PlayersFrame[index].Visible = False;
 				}
@@ -204,138 +225,162 @@ Text CreateScoresTable(){
 		<frame id="Times" posn="0 8 0">
 			<quad posn="-87 40 -1" sizen="175 108" bgcolor="000F" style="EnergyBar" substyle="EnergyBar" opacity="0.8"/>
 			<quad posn="25 -53 0" sizen="68 26" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" opacity="0.8"/>
-			<quad posn="-91 53 1" sizen="100 33" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg" opacity="0.8"/>
-			<label posn="-86 37 1" sizen="85 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1" valign="center"/>
-			<label posn="-1 33 1" sizen="84 4" text="{{{ServerName}}}" textsize="1" valign="center2" halign="right"/>
+			<quad posn="-92 58 1" sizen="100 33" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg" opacity="0.8"/>
+			<label posn="-73 30 0" sizen="15 5" text="Player" textsize="2"/>
+			<label posn="-25 32 0" sizen="5 3" text="CP" textsize="1"/>
+			<label posn="-28 29 0" sizen="13 3" text="Respawns" textsize="1" halign="center"/>
+						<label posn="-2.5 29 0" sizen="13 3" text="Time" textsize="1" halign="right"/>
+			<label posn="6 30 0" sizen="15 5" text="Player" textsize="2"/>
+						<label posn="56 32 0" sizen="5 3" text="CP" textsize="1"/>
+			<label posn="54 29 0" sizen="13 3" text="Respawns" textsize="1" halign="center"/>
+									<label posn="77 29 0" sizen="13 3" text="Time" textsize="1" halign="right"/>
+			<label posn="-87 43 1" sizen="85 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1" valign="center"/>
+			<label posn="-1 37 1" sizen="84 4" text="{{{ServerName}}}" textsize="1" valign="center2" halign="right"/>
 			
 			<frame posn="0 5 1">
 				<quad posn="0 -20.5 0.5" sizen="162 85" bgcolor="1F1F1FFF" halign="center" valign="center" style="Bgs1" substyle="BgButtonGlow"/>
 				<frame id="player1" posn="-10.5 25 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8"/>
-					<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<label id="1" posn="-61 -10 0" sizen="41 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
-					<label id="time1" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp1" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time1" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp1" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns1" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player2" posn="-10.5 15 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="2" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
-					<label id="time2" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp2" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time2" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp2" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns2" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player3" posn="-10.5 5 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="3" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
-					<label id="time3" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp3" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time3" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp3" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns3" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player4" posn="-10.5 -5 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="4" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
-					<label id="time4" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp4" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time4" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp4" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns4" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player5" posn="-10.5 -15 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="5" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
-					<label id="time5" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp5" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time5" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp5" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns5" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player6" posn="-10.5 -25 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="6" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
-					<label id="time6" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp6" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time6" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp6" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns6" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player7" posn="-10.5 -35 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="7" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
-					<label id="time7" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp7" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time7" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp7" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns7" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player8" posn="-10.5 -45 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="8" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec8"/>
-					<label id="time8" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp8" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+					<label id="time8" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp8" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns8" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player9" posn="68 25 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="9" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec9"/>
-					<label id="time9" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp9" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time9" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp9" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns9" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 				
 				<frame id="player10" posn="68 15 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="10" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec10"/>
-					<label id="time10" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp10" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time10" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp10" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns10" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player11" posn="68 5 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="11" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec11"/>
-					<label id="time11" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp11" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time11" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp11" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns11" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player12" posn="68 -5 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="12" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec12"/>
-					<label id="time12" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp12" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label id="time12" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp12" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns12" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player13" posn="68 -15 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="13" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec13"/>
-					<label id="time13" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp13" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+					<label id="time13" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp13" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns13" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player14" posn="68 -25 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="14" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec14"/>
-					<label id="time14" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp14" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+					<label id="time14" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp14" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns14" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player15" posn="68 -35 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="15" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec15"/>
-					<label id="time15" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp15" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+					<label id="time15" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp15" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns15" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 
 				<frame id="player16" posn="68 -45 1">
 					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
 					<label id="16" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
 					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec16"/>
-					<label id="time16" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
-					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp16" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+					<label id="time16" posn="2 -8.5 0" sizen="20 6" text="00:00.00" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-12 -8 1" sizen="13 5" text="0" id="cp16" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+					<label posn="-12 -12 1" sizen="13 5" text="0" id="respawns16" style="TextCardSmall" textsize="1" halign="center" valign="center2"/>
 				</frame>
 				<frame id="FramePagination">
 					<quad id="next" posn="80 -70 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
@@ -544,9 +589,9 @@ Text CreatePlayerInterface(){
 				LastUpdate = Now;
 				if(InputPlayer != Null){
 					if(IsSpectatorMode){
-						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -10.0, 0.0>, Smooth*2);
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -10.0, 0.0>, Smooth);
 					} else {
-						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -10.0, 0.0>, Smooth*2);
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -10.0, 0.0>, Smooth);
 					}
 					if(Net_Running){
 						YPosRunningObj = YPosRunningOut;
