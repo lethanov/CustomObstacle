@@ -1,0 +1,836 @@
+Text CreateScoresTable(){
+	return """
+		<script><!--
+
+		#Include "TextLib" as TextLib
+		#Include "MathLib" as MathLib
+		
+		declare Buttons = [(Page.GetFirstChild("prev") as CMlQuad), (Page.GetFirstChild("next") as CMlQuad)];
+
+		declare Times = [(Page.GetFirstChild("Times") as CMlFrame)];
+
+		declare Spectators = [(Page.GetFirstChild("Spectators") as CMlFrame)];
+
+		declare SpectatorsCount = [(Page.GetFirstChild("SpectatorsCount") as CMlLabel)];
+
+		declare FramePagination = [(Page.GetFirstChild("FramePagination") as CMlFrame)];
+
+		declare PlayersFrame = [
+			(Page.GetFirstChild("player1") as CMlFrame),
+			(Page.GetFirstChild("player2") as CMlFrame),
+			(Page.GetFirstChild("player3") as CMlFrame),
+			(Page.GetFirstChild("player4") as CMlFrame),
+			(Page.GetFirstChild("player5") as CMlFrame),
+			(Page.GetFirstChild("player6") as CMlFrame),
+			(Page.GetFirstChild("player7") as CMlFrame),
+			(Page.GetFirstChild("player8") as CMlFrame),
+			(Page.GetFirstChild("player9") as CMlFrame),
+			(Page.GetFirstChild("player10") as CMlFrame),
+			(Page.GetFirstChild("player11") as CMlFrame),
+			(Page.GetFirstChild("player12") as CMlFrame),
+			(Page.GetFirstChild("player13") as CMlFrame),
+			(Page.GetFirstChild("player14") as CMlFrame),
+			(Page.GetFirstChild("player15") as CMlFrame),
+			(Page.GetFirstChild("player16") as CMlFrame)
+		];
+
+		declare PlayersLabels = [
+			(Page.GetFirstChild("1") as CMlLabel),
+			(Page.GetFirstChild("2") as CMlLabel),
+			(Page.GetFirstChild("3") as CMlLabel),
+			(Page.GetFirstChild("4") as CMlLabel),
+			(Page.GetFirstChild("5") as CMlLabel),
+			(Page.GetFirstChild("6") as CMlLabel),
+			(Page.GetFirstChild("7") as CMlLabel),
+			(Page.GetFirstChild("8") as CMlLabel),
+			(Page.GetFirstChild("9") as CMlLabel),
+			(Page.GetFirstChild("10") as CMlLabel),
+			(Page.GetFirstChild("11") as CMlLabel),
+			(Page.GetFirstChild("12") as CMlLabel),
+			(Page.GetFirstChild("13") as CMlLabel),
+			(Page.GetFirstChild("14") as CMlLabel),
+			(Page.GetFirstChild("15") as CMlLabel),
+			(Page.GetFirstChild("16") as CMlLabel)
+		];
+
+		declare Labels = [
+			(Page.GetFirstChild("currentPage") as CMlLabel)
+			];
+
+		declare LabelsTime = [
+			(Page.GetFirstChild("time1") as CMlLabel),
+			(Page.GetFirstChild("time2") as CMlLabel),
+			(Page.GetFirstChild("time3") as CMlLabel),
+			(Page.GetFirstChild("time4") as CMlLabel),
+			(Page.GetFirstChild("time5") as CMlLabel),
+			(Page.GetFirstChild("time6") as CMlLabel),
+			(Page.GetFirstChild("time7") as CMlLabel),
+			(Page.GetFirstChild("time8") as CMlLabel),
+			(Page.GetFirstChild("time9") as CMlLabel),
+			(Page.GetFirstChild("time10") as CMlLabel),
+			(Page.GetFirstChild("time11") as CMlLabel),
+			(Page.GetFirstChild("time12") as CMlLabel),
+			(Page.GetFirstChild("time13") as CMlLabel),
+			(Page.GetFirstChild("time14") as CMlLabel),
+			(Page.GetFirstChild("time15") as CMlLabel),
+			(Page.GetFirstChild("time16") as CMlLabel)
+			];
+
+		declare LabelsCP = [
+			(Page.GetFirstChild("cp1") as CMlLabel),
+			(Page.GetFirstChild("cp2") as CMlLabel),
+			(Page.GetFirstChild("cp3") as CMlLabel),
+			(Page.GetFirstChild("cp4") as CMlLabel),
+			(Page.GetFirstChild("cp5") as CMlLabel),
+			(Page.GetFirstChild("cp6") as CMlLabel),
+			(Page.GetFirstChild("cp7") as CMlLabel),
+			(Page.GetFirstChild("cp8") as CMlLabel),
+			(Page.GetFirstChild("cp9") as CMlLabel),
+			(Page.GetFirstChild("cp10") as CMlLabel),
+			(Page.GetFirstChild("cp11") as CMlLabel),
+			(Page.GetFirstChild("cp12") as CMlLabel),
+			(Page.GetFirstChild("cp13") as CMlLabel),
+			(Page.GetFirstChild("cp14") as CMlLabel),
+			(Page.GetFirstChild("cp15") as CMlLabel),
+			(Page.GetFirstChild("cp16") as CMlLabel)
+			];
+
+
+		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
+
+		declare netread Text[] Net_PlayersTimeData for Teams[0];
+
+		declare netwrite currentPage for UI = 0;
+		declare ShowOptionsMenu for UI = 0;
+		declare ShowStatsMenu for UI = False;
+		declare netwrite SpecTarget for UI = "";
+
+		declare netread Integer SpecCount for UI;
+
+		declare LastUpdate = 0;
+
+		currentPage = 0;
+
+		while(True){
+			yield;
+			
+			if(Players.count > 16){
+				FramePagination[0].Visible = True;
+			} else {
+				FramePagination[0].Visible = False;
+			}
+
+			Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText(MathLib::CeilingInteger(Players.count/16.0));
+
+			declare index = 0;
+			declare maxCount = 16;
+			while(index < maxCount){
+				declare key = currentPage * 16 + index;
+				if(Net_PlayersTimeData.existskey(key)){
+					declare data = TextLib::Split("|", Net_PlayersTimeData[key]);
+					PlayersFrame[index].Visible = True;
+					foreach(Player, Players){
+						if(Player.Login == data[0]){
+							PlayersLabels[index].Value = (currentPage * 16 + (index + 1)) ^ " - " ^ Player.Name;
+							continue;
+						}
+					}
+					if(TextLib::ToInteger(data[1]) != -1){
+						LabelsTime[index].Value = TextLib::TimeToText(TextLib::ToInteger(data[1]), True);
+					} else {
+						LabelsTime[index].Value = "--:--,--";
+					}
+					LabelsCP[index].Value = data[2];
+				} else {
+					PlayersFrame[index].Visible = False;
+				}
+				index += 1;
+			}
+
+			foreach (Event in PendingEvents) {
+				switch(Event.Type){
+					case CMlEvent::Type::MouseClick:{
+						if(Event.ControlId == "prev"){
+							if(currentPage > 0){
+								currentPage -= 1;
+							}
+						}
+						if(Event.ControlId == "next"){
+							if(currentPage < MathLib::CeilingInteger(Players.count/16.0) - 1){
+								currentPage += 1;
+							}
+						}
+					}
+				}
+			}
+
+		}
+		--></script>
+		<frame id="Spectators">
+			<quad posn="148 -68 0" sizen="6 5.33" bgcolor="FFFA" style="Icons64x64_1" substyle="Camera"/>
+			<quad  posn="146 -62 -1" sizen="18 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<label id="SpectatorsCount" posn="159 -71 0" sizen="7 5" text="N/A" textsize="1" valign="center2" halign="right"/>
+		</frame>
+		<frame id="Times" posn="0 8 0">
+			<quad posn="-87 40 -1" sizen="175 108" bgcolor="000F" style="EnergyBar" substyle="EnergyBar" opacity="0.8"/>
+			<quad posn="25 -53 0" sizen="68 26" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" opacity="0.8"/>
+			<quad posn="-91 53 1" sizen="100 33" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg" opacity="0.8"/>
+			<label posn="-86 37 1" sizen="85 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1" valign="center"/>
+			<label posn="-1 33 1" sizen="84 4" text="{{{ServerName}}}" textsize="1" valign="center2" halign="right"/>
+			
+			<frame posn="0 5 1">
+				<quad posn="0 -20.5 0.5" sizen="162 85" bgcolor="1F1F1FFF" halign="center" valign="center" style="Bgs1" substyle="BgButtonGlow"/>
+				<frame id="player1" posn="-10.5 25 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8"/>
+					<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
+					<label id="time1" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp1" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player2" posn="-10.5 15 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="2" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
+					<label id="time2" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp2" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player3" posn="-10.5 5 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="3" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
+					<label id="time3" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp3" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player4" posn="-10.5 -5 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="4" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
+					<label id="time4" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp4" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player5" posn="-10.5 -15 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="5" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
+					<label id="time5" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp5" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player6" posn="-10.5 -25 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="6" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
+					<label id="time6" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp6" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player7" posn="-10.5 -35 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="7" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
+					<label id="time7" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp7" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player8" posn="-10.5 -45 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="8" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec8"/>
+					<label id="time8" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp8" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player9" posn="68 25 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="9" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec9"/>
+					<label id="time9" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp9" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+				
+				<frame id="player10" posn="68 15 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="10" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec10"/>
+					<label id="time10" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp10" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player11" posn="68 5 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="11" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec11"/>
+					<label id="time11" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp11" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player12" posn="68 -5 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="12" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec12"/>
+					<label id="time12" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp12" style="TextCardSmall" textsize="1" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player13" posn="68 -15 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="13" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec13"/>
+					<label id="time13" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp13" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player14" posn="68 -25 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="14" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec14"/>
+					<label id="time14" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp14" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player15" posn="68 -35 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="15" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec15"/>
+					<label id="time15" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp15" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+				</frame>
+
+				<frame id="player16" posn="68 -45 1">
+					<quad posn="-68 -10 0" sizen="79 10" bgcolor="003366C6" halign="left" valign="center"  style="UiSMSpectatorScoreBig" substyle="PlayerSlotSmallRev" opacity="0.8" />
+					<label id="16" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
+					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec16"/>
+					<label id="time16" posn="2 -8.5 0" sizen="20 6" text="-" style="TextCardMedium" textsize="2" halign="center"/>
+					<label posn="-10 -10 1" sizen="13 5" text="0" id="cp16" style="TextCardSmall" textsize="2" halign="center" valign="center"/>
+				</frame>
+				<frame id="FramePagination">
+					<quad id="next" posn="80 -70 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
+					<quad id="prev" posn="54 -70 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
+					<label id="currentPage" posn="70 -73 1" sizen="20 5" text="[currentPage]" valign="center2" halign="center" textsize="2"/>
+				</frame>
+			</frame>
+		</frame>
+		""";
+}
+
+Text CreatePlayerInterface(){
+	return """
+	<script><!--
+	#Include "TextLib" as TextLib
+	#Include "MathLib" as MathLib
+
+	Text Ordinal(Integer Value) {
+		declare Text valueReturned;
+    	declare mod100 = Value % 100;
+	    declare mod10 = Value % 10;
+
+		if(mod10 == 1 && mod100 != 11) {
+			valueReturned = Value ^ "st";
+		} else if(mod10 == 2 && mod100 != 12) {
+			valueReturned = Value ^ "nd";
+		} else if(mod10 == 3 && mod100 != 13) {
+			valueReturned = Value ^ "rd";
+		} else {
+			valueReturned = Value ^ "th";
+		}
+
+		return valueReturned;
+ 	}
+
+	Vec3 Lerp(Vec3 _Origin, Vec3 _Destination, Real _Smooth){
+		declare Real x;
+		declare Real y;
+		declare Real z;
+
+		x = _Origin.X;
+		y = _Origin.Y;
+		z = _Origin.Z;
+
+		declare Real xDes;
+		declare Real yDes;
+		declare Real zDes;
+
+		xDes = _Destination.X;
+		yDes = _Destination.Y;
+		zDes = _Destination.Z;
+
+		declare xDiff = MathLib::Abs(xDes - x) / _Smooth;
+		declare yDiff = MathLib::Abs(yDes - y) / _Smooth;
+		declare zDiff = MathLib::Abs(zDes - z) / _Smooth;
+
+		if(x < xDes){
+			if(xDiff > 0.01){
+				x += xDiff;
+			} else {
+				x = xDes;
+			}
+		}
+		if(x > xDes){
+			if(xDiff > 0.01){
+				x -= xDiff;
+			} else {
+				x = xDes;
+			}
+		}
+
+		if(y < yDes){
+			if(yDiff > 0.01){
+				y += yDiff;
+			} else {
+				y = yDes;
+			}
+		}
+		if(y > yDes){
+			if(yDiff > 0.01){
+				y -= yDiff;
+			} else {
+				y = yDes;
+			}
+		}
+
+		if(z < zDes){
+			if(zDiff > 0.01){
+				z += zDiff;
+			} else {
+				z = zDes;
+			}
+		}
+		if(z > zDes){
+			if(zDiff > 0.01){
+				z -= zDiff;
+			} else {
+				z = zDes;
+			}
+		}
+
+		return <x, y, z>;
+	}
+
+	main(){
+		declare PlayerInterfaces = [
+			(Page.GetFirstChild("Running") as CMlFrame),
+			(Page.GetFirstChild("RaceTerminated") as CMlFrame)
+		];
+
+		declare CPProgress = [
+			(Page.GetFirstChild("CPProgress") as CMlLabel)
+		];
+
+		declare GaugeAmmo = [
+			(Page.GetFirstChild("PlayerAmmo") as CMlGauge)
+		];
+
+		declare GaugeStamina = [
+			(Page.GetFirstChild("PlayerStamina") as CMlGauge)
+		];
+
+		declare PlayerTimer = [
+			(Page.GetFirstChild("PlayerTimer") as CMlLabel)
+		];
+
+		declare PlayerBestTime = [
+			(Page.GetFirstChild("PlayerBestTime") as CMlLabel)
+		];
+
+		declare PlayerRunsAndRespawns = [
+			(Page.GetFirstChild("PlayerRunsAndRespawns") as CMlLabel)
+		];
+
+		declare RaceTerminated = [
+			(Page.GetFirstChild("Shots") as CMlLabel),
+			(Page.GetFirstChild("MaxSpeed") as CMlLabel),
+			(Page.GetFirstChild("StaminaUsed") as CMlLabel),
+			(Page.GetFirstChild("Place") as CMlLabel)
+		];
+
+		declare Theoricals = [
+			(Page.GetFirstChild("Theorical") as CMlLabel),
+			(Page.GetFirstChild("BestTheorical") as CMlLabel)
+		];
+
+		declare LastUpdate = 0;
+
+		declare netwrite RespawnAtStart for UI = False;
+
+		declare netread Integer Net_PlayerStartTime for UI;
+		declare netread Boolean Net_Running for UI;
+		declare netread Boolean Net_HasAmmo for UI;
+		declare netread Boolean Net_AmmoUnlimited for UI;
+		declare netread Boolean Net_AmmoRegen for UI;
+		declare netread Boolean Net_StaminaUnlimited for UI;
+		declare netread Boolean Net_StaminaRegen for UI;
+		declare netread Integer Net_BestTime for UI;
+		declare netread Integer Net_Runs for UI;
+		declare netread Integer Net_Finishs for UI;
+		declare netread Integer Net_Respawns for UI;
+		declare netread Integer Net_ShotsFired for UI;
+		declare netread Integer Net_StaminaUsed for UI;
+		declare netread Integer Net_CheckpointProgress for UI;
+		declare netread Real Net_MaxSpeed for UI;
+		declare netread Integer Net_Place for UI;
+		declare netread Integer Net_Theorical for UI;
+
+		declare netread Integer Net_CheckpointsCount for Teams[0];
+
+		declare Integer LastBestTime;
+		declare Integer LastFinishs;
+		declare Real YPosRunning;
+		declare Real YPosEnded;
+
+		declare YPosRunningIn = -15.0;
+		declare YPosRunningOut = -2.0;
+		declare YPosRunningObj = YPosRunningOut;
+
+		declare YPosEndedIn = -20.0;
+		declare YPosEndedOut = 0.0;
+		declare YPosEndedObj = YPosEndedIn;
+
+		declare Smooth = 5.0;
+
+		LastBestTime = Net_BestTime;
+		LastFinishs = Net_Finishs;
+
+		while(True){
+			yield;			
+			if (LastUpdate + 25 > Now) continue;
+			LastUpdate = Now;
+			if(InputPlayer != Null){
+				if(Net_Running){
+					YPosRunningObj = YPosRunningOut;
+					YPosEndedObj = YPosEndedIn;
+					if(Net_HasAmmo){
+						GaugeAmmo[0].Visible = True;
+						if(Net_AmmoUnlimited){
+
+							GaugeAmmo[0].Ratio = 1.0;
+							GaugeAmmo[0].GradingRatio = 1.0;
+							GaugeAmmo[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+							GaugeAmmo[0].Size = <69.0, 7.0>;
+						} else {
+							GaugeAmmo[0].Size = <69.0, 10.0>;
+							GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
+							if(InputPlayer.CurAmmoMax != 0){
+								GaugeAmmo[0].Ratio = (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0);
+								GaugeAmmo[0].GradingRatio = 1 / (InputPlayer.CurAmmoMax / 1600.0);
+								if(!Net_AmmoRegen){
+									GaugeAmmo[0].Color = <1.0, 0.0, 0.0>;
+								} else {
+									GaugeAmmo[0].Color = <1.0, (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0), (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)>;
+								}
+							}
+						}						
+					} else {
+						GaugeAmmo[0].Visible = False;
+						GaugeAmmo[0].Ratio = 0.0;
+						GaugeAmmo[0].GradingRatio = 1.0;
+					}
+					
+					GaugeStamina[0].Ratio = InputPlayer.Stamina / 3600.0;
+					if(Net_StaminaUnlimited){
+						GaugeStamina[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+						GaugeStamina[0].Ratio = 1.0;
+						GaugeStamina[0].Size = <69.0, 7.0>;
+					} else {
+						GaugeStamina[0].Size = <69.0, 10.0>;
+						if(!Net_StaminaRegen){
+							GaugeStamina[0].Color = <1.0, 0.0, 0.0>;
+						} else {
+							GaugeStamina[0].Color = <1.0, InputPlayer.Stamina / 3600.0, InputPlayer.Stamina / 3600.0>;
+						}
+					}
+					PlayerTimer[0].Value = TextLib::TimeToText(ArenaNow - Net_PlayerStartTime, True);
+				} else {
+					YPosRunningObj = YPosRunningIn;
+					if(Net_Finishs != LastFinishs){
+						YPosEndedObj = YPosEndedOut;
+						LastFinishs = Net_Finishs;
+					}
+
+					GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
+					GaugeStamina[0].Color = <1.0, 1.0, 1.0>;
+					GaugeAmmo[0].Ratio = 0.0;
+					GaugeStamina[0].Ratio = 0.0;
+					PlayerTimer[0].Value = "--:--,--";
+
+					RaceTerminated[0].Value = "Shots fired : " ^ Net_ShotsFired;
+					RaceTerminated[1].Value = "Max speed : " ^ Net_MaxSpeed;
+					RaceTerminated[2].Value = "Stamina consumed : " ^ Net_StaminaUsed;
+					RaceTerminated[3].Value = Ordinal(Net_Place);
+				}	
+				
+				CPProgress[0].Value = Net_CheckpointProgress ^ "/" ^ Net_CheckpointsCount;
+				
+				PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningObj, 0.0>, Smooth);
+				PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedObj, -1.0>, Smooth);
+
+				Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theorical, True);
+
+				if(Net_BestTime == -1){
+					PlayerBestTime[0].Value = "Best : --:--,--";
+				} else {
+					PlayerBestTime[0].Value = "Best : " ^ TextLib::TimeToText(Net_BestTime, True);
+					if(LastBestTime != Net_BestTime){
+						LastBestTime = Net_BestTime;
+						PlayerBestTime[0].TextSize = 6;
+					}
+					if(PlayerBestTime[0].TextSize > 2){
+						PlayerBestTime[0].TextSize -= 1;
+					}
+				}
+
+				if(!RespawnAtStart){
+					PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
+				} else {
+					PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " $s$f00No Respawns";
+				}
+			} else {
+				GaugeAmmo[0].Visible = False;
+				GaugeStamina[0].Visible = False;
+				PlayerTimer[0].Value = "--:--,--";
+			}
+		}
+	}
+	--></script>
+	<frame id="PlayerInterface" posn="0 0 0">
+		<frame id="GlobalTimer">
+			<quad posn="-166 99 0" sizen="23 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
+			<label posn="-153 87 0" sizen="14 5" text="FREE TIME" textsize="1" style="TextRaceChrono" valign="center" halign="center"/>
+		</frame>
+		<frame id="RaceTerminated" posn="0 -16 0">
+			<quad posn="-51 -73 0" sizen="102 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
+			<label id="Shots" posn="-47 -77 0" sizen="31 3" text="Shots fired : N/A" autonewline="1" textsize="1"/>
+			<label id="MaxSpeed" posn="-47 -81 0" sizen="35 3" text="Max speed : N/A" autonewline="1" textsize="1"/>
+			<label id="StaminaUsed" posn="-47 -85 0" sizen="45 3" text="Stamina used : N/A" autonewline="1" textsize="1"/>
+			<label id="Place" style="TextValueSmallSm" posn="47 -86 0" sizen="33 5" text="This run : 00:00.00" textsize="2" halign="right" valign="center"/>
+		</frame>
+		<frame id="Corner">
+			<quad posn="97 -72 -2" sizen="67 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<label id="BestTheorical" posn="158 -79.5 0" sizen="32 5" text="All Theo. : 00:00.00" textsize="0.5" halign="right" valign="center"/>
+			<label id="Theorical" posn="125 -80.5 0" sizen="32 5" text="Theo. : 00:00.00" textsize="1" halign="right" valign="center"/>
+			<quad posn="77 -73 0" sizen="88 32" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<quad posn="119 -78 1" sizen="47 19" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="BotLeft"/>
+			<label id="PlayerBestTime" posn="144 -86 2" sizen="24 6" text="Best : 00:00:00" halign="center" valign="center" textcolor="000000FF" textsize="2"/>
+			<label id="PlayerRunsAndRespawns" posn="85 -86 0" sizen="31 3" text="Runs : 0 - RS : 0" textsize="1"/>
+		</frame>
+		<frame id="Running" posn="0 -2 0">
+			<quad posn="-89 -76 0" sizen="78 18" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<quad posn="5 -76 -1" sizen="84 18" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<quad posn="68 -74 0" sizen="11 12" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" hidden="1"/>
+			<label id="CPProgress" posn="77 -80 0" sizen="13 5" text="?/?" textsize="1" valign="center" halign="right" hidden="1"/>
+			<gauge id="PlayerAmmo" posn="-14 -85 0" sizen="69 10" valign="center" halign="right" ratio="1" grading="0.25" drawbg="0"/>
+			<gauge id="PlayerStamina" posn="14 -85 -1" sizen="69 10" valign="center" halign="left" ratio="1" color="ff66ffFF" drawbg="0"/>
+			<quad posn="0 -84.5 1" sizen="30 8" bgcolor="FFFA" halign="center" valign="center" style="EnergyBar" substyle="BgText"/>
+			<label id="PlayerTimer" posn="0 -84 2" sizen="23 9" text="--:--,--" style="TextRaceChrono" halign="center" valign="center" textsize="4"/>
+		</frame>
+	</frame>
+	""";
+}
+
+Text CreateUIEventManager(){
+	return """
+		<script><!--
+
+		declare ShowOptionsMenu for UI = 0;
+		declare netwrite RespawnKeyToggle for UI = "F4";
+		declare netwrite RespawnAtStart for UI = False;
+
+		declare netwrite CustomKeyTime for UI = 0;
+		declare CustomKey for UI = "Delete";
+
+		
+
+		while (True) {
+			yield;
+			// Process events
+			foreach (Event in PendingEvents) {
+				switch (Event.Type) {
+					case CMlEvent::Type::MouseClick: {
+						if(Event.ControlId == "closeOptionsMenu"){
+							ShowOptionsMenu = 0;
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(Event.KeyName == RespawnKeyToggle){
+							RespawnAtStart = !RespawnAtStart;
+						}
+						if(Event.KeyName == CustomKey){
+							CustomKeyTime = ArenaNow;
+						}
+					}
+				}
+			}
+		}
+		--></script>
+	""";
+}
+/*
+{{{G_Checkpoints[cpNext].Position.X}}} {{{G_Checkpoints[cpNext].Position.Y + 2}}} {{{G_Checkpoints[cpNext].Position.Z}}}
+Text CreateUIOptionsMenu(){
+	return """
+	<script><!--
+	declare ShowOptionsMenu for UI = 0;
+
+	declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame), (Page.GetFirstChild("Help") as CMlFrame)];
+
+	declare Labels = [
+		(Page.GetFirstChild("showHud") as CMlLabel),
+		(Page.GetFirstChild("extraHud") as CMlLabel),
+		(Page.GetFirstChild("respawnKeyDefault") as CMlLabel),
+		(Page.GetFirstChild("respawnModeKey") as CMlLabel),
+		(Page.GetFirstChild("customKeyDesc") as CMlLabel),
+		(Page.GetFirstChild("customKey") as CMlLabel)		
+	];
+
+	declare Spec = [
+		(Page.GetFirstChild("Spec") as CMlLabel)
+	];
+
+	declare Info = [
+		(Page.GetFirstChild("info") as CMlLabel)
+	];
+
+	declare Buttons = [(Page.GetFirstChild("showStatsMenu") as CMlLabel), (Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
+
+	declare netwrite SpecTarget for UI = "";
+	declare netread ShowSpec for UI = False;
+	declare netwrite SwitchFullHud for UI = False;
+	declare netwrite SwitchExtraHud for UI = False;
+	declare SwitchHelp for UI = True;
+
+	declare RespawnKeyToggleEdit for UI = False;
+	declare CustomKeyEdit for UI = False;
+
+	declare netwrite RespawnKeyToggle for UI = "F4";
+	declare CustomKey for UI = "Delete";
+
+	declare ShowStatsMenu for UI = False;
+
+	while (True) {
+		Info[0].Value = "Press your user respawn key to Restart, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to respawn at Last CP.";
+		if(ShowSpec){
+			Spec[0].Visible = True;
+		} else {
+			Spec[0].Visible = False;
+		}
+
+		if(ShowOptionsMenu == 1){
+			Frame[0].Visible = True;
+		} else {
+			Frame[0].Visible = False;
+		}
+
+		if(ShowStatsMenu || ShowOptionsMenu == 1){
+			Buttons[0].Visible = False;
+			Buttons[1].Visible = False;
+		} else {
+			Buttons[0].Visible = True;
+			Buttons[1].Visible = True;
+		}
+		if(SwitchHelp){
+			Frame[1].Visible = True;
+		} else {
+			Frame[1].Visible = False;
+		}
+
+		if(SwitchFullHud){
+			Labels[0].Value = "Yes";
+		} else {
+			Labels[0].Value = "No";
+		}
+		if(SwitchExtraHud){
+			Labels[1].Value = "Yes";
+		} else {
+			Labels[1].Value = "No";
+		}
+		if(!RespawnKeyToggleEdit){
+			Labels[3].Value = RespawnKeyToggle;
+		} else {
+			Labels[3].Value = "Press new key";
+		}
+		if(!CustomKeyEdit){
+			Labels[5].Value = CustomKey;
+		} else {
+			Labels[5].Value = "Press new key";
+		}
+		yield;
+		// Process events
+		foreach (Event in PendingEvents) {
+			switch (Event.Type) {
+				case CMlEvent::Type::MouseClick: {
+					if(Event.ControlId == "closeOptionsMenu"){
+						ShowOptionsMenu = 0;
+					}
+					if(Event.ControlId == "showOptionsMenu"){
+						if(ShowOptionsMenu == 0){
+							ShowOptionsMenu = 1;
+						} else {
+							ShowOptionsMenu = 0;
+						}
+					}
+					if(Event.ControlId == "showStatsMenu"){
+						ShowStatsMenu = !ShowStatsMenu;
+					}
+					if(Event.ControlId == "showHud"){
+						SwitchFullHud = !SwitchFullHud;
+					}
+					if(Event.ControlId == "extraHud"){
+						SwitchExtraHud = !SwitchExtraHud;
+					}
+					
+					if(Event.ControlId == "respawnModeKey"){
+						RespawnKeyToggleEdit = True;
+					}
+					if(Event.ControlId == "customKey"){
+						CustomKeyEdit = True;
+					}
+					if(Event.ControlId == "Spec"){
+						SpecTarget = "";
+					}
+				}
+				case CMlEvent::Type::KeyPress: {
+					if(RespawnKeyToggleEdit){
+						RespawnKeyToggleEdit = False;
+						RespawnKeyToggle = Event.KeyName;
+					}
+					if(CustomKeyEdit){
+						CustomKeyEdit = False;
+						CustomKey = Event.KeyName;
+					}
+					if(Event.KeyName == "H"){
+						SwitchHelp = !SwitchHelp;
+					}
+				}
+			}
+		}
+	}
+	--></script>
+	<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
+	<quad id="Spec" posn="-57 -54.5" sizen="12 12" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" halign="center" valign="center2"/>
+	<frame id="Help">
+		<label id="info" posn="-158 84 0" sizen="127 6" text="" textsize="1" autonewline="1"/><label posn="-158 61 0" sizen="42 7" text="Hold Alt to activate mouse.  Press H to switch on/off this stuff." textsize="1" autonewline="1" halign="left"/>
+		<label posn="-158 81 0" sizen="79 5" text="" textsize="1"/>
+		<label id="showOptionsMenu" posn="-158 74 0" sizen="79 4" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
+		<label id="showStatsMenu" posn="-158 68 0" sizen="79 4" autonewline="1" text="Stats" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
+	</frame>
+	<frame id="OptionsMenu">
+		<quad posn="0 0 0" sizen="150 98" bgcolor="000000C6" valign="center" halign="center" style="Bgs1" substyle="BgHealthBar" />
+		<label posn="72 -42 1" sizen="25 6" text="Options" style="TextTitle3" textsize="3" halign="right"/>
+		<label posn="-70 41 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
+		<label posn="-66 32 1" sizen="45 4" text="$aafShow what values means." textsize="2" autonewline="1"/>
+		<label posn="14 34 1" sizen="4 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
+		<label posn="-66 22 1" sizen="69 4" text="$aafShow Previous CP Info and Next CP Info." textsize="2" autonewline="1"/>
+		<label posn="14 24 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
+		<label posn="-70 4 1" sizen="70 4" text="Rebind keys" style="TextTitle3" textsize="2"/>
+		<label posn="14 -11 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnModeKey"/>
+		<label posn="-64 -14 1" sizen="53 4" text="$aafForce respawn at the beginning." textsize="2" autonewline="1"/>
+		<label posn="14 -20 1" sizen="20 5" text="Delete" style="CardButtonMediumXL" scriptevents="1" id="customKey"/>
+		<label id="customKeyDesc" posn="-64 -23 1" sizen="42 4" text="$aafKey for normal respawn." textsize="2" autonewline="1"/>
+		<label posn="-76 -37 2" sizen="2 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
+	</frame>
+	""";
+}
+*/

@@ -6,8 +6,8 @@
 
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const CompatibleMapTypes  "ObstacleRebornArena, ObstacleTitleArena, ObstacleArena"
-#Const Version             "19"
+#Const CompatibleMapTypes  "ObstacleArena, ObstacleTitleArena, ObstacleRebornArena"
+#Const Version             "21"
 #Const ScriptName          "ObstacleReborn.Script.txt"
 
 #Include "Libs/Nadeo/Settings.Script.txt" as Settings
@@ -17,48 +17,27 @@
 #Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/Message.Script.txt" as Message
 #Include "Libs/Nadeo/Interface.Script.txt" as Interface
-#Include "Libs/Nadeo/Json.Script.txt" as Json
 #Include "Libs/Nadeo/Layers.Script.txt" as Layers
+#Include "Libs/Nadeo/Json.Script.txt" as Json
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
-#Include "Libs/Lethan/ChronoObs.Script.txt" as Chrono
+#Include "Libs/Lethan/ObstacleManialinks.Script.txt" as Manialinks
+#Include "Libs/Lethan/ObstaclePlayerManager.Script.txt" as PM
 
-// ---------------------------------- //
-// Constants
-// ---------------------------------- //
-#Const C_Revision 19
+declare Text G_GamePhase;
 
-// ---------------------------------- //
-// Globales
-// ---------------------------------- //
 declare CSmMapLandmark G_MainSpawn;
 declare CSmMapLandmark[Integer] G_Checkpoints;
 
 declare Integer G_CheckpointsCount;
-declare Boolean G_FinishAny;
 
-declare Integer[Ident] G_StartsTime;
-declare Integer[Ident] G_PreviousTimes;
-declare Integer[Ident] G_BestTimes;
-
-declare Integer[Integer] G_BestChecks;
-declare Integer[Integer] G_BestChecksInt;
-
-declare Integer[Ident] G_CheckpointNext;
-declare Integer[Ident] G_Respawns;
-declare Integer[Ident] G_Finish;
-
-declare Boolean[Ident] G_Stamina;
-
-declare CUILayer G_UIEventManager;
 declare CUILayer G_ScoresTable;
-declare CUILayer G_OptionsMenu;
+declare CUILayer G_UIEventManager;
 
-declare Text G_GamePhase;
 
-***Rules***
+***StartMap***
 ***
 declare ModeName = "Obstacle Reborn";
-declare ModeRules = """
+declare Rules = """
 Authors : Kana & Lethan
 Original Author : Steeffeen
 
@@ -68,41 +47,30 @@ Original Author : Steeffeen
 """;
 
 SpawnScreen::ResetRulesSection();
-SpawnScreen::AddSubsection(_("Obstacle Reborn - Informations"), ModeRules, 20.);
+SpawnScreen::AddSubsection(_("Obstacle Reborn - Informations"), Rules, 20.);
 SpawnScreen::CreatePrettyRules(ModeName);
-ModeStatusMessage = """
-- Finish the $<$88fobstacle course$> as fast as possible.
-- To validate a race you must touch the finish after going through all the $<$88fcheckpoints$>.
-- You can start over and improve your time as often as you want.
-""";
-***
-
-***StartServer***
-***
+ModeStatusMessage = Rules;
 
 SpawnScreen::CreateMapInfo();
-
-ST2::Unload();
----Rules---
-
-InitInterface();
-***
-
-***StartMap***
-***
-G_GamePhase = "init";
-//declare test = Users_CreateFake("Oiseau", 0);
 //Users_DestroyAllFakes();
-//Users_SetNbFakeUsers(20,0);
+Users_SetNbFakeUsers(20,0);
 InitObstacle();
-
-MB_Sleep(1); //Score sort
-
-sleep(1000);
 ***
 
 ***PlayLoop***
 ***
+Message::Loop();
+if(G_GamePhase == "verify"){
+	if(!VerifyMap()){
+		Message::SendStatusMessage("Please inform the map author : $z" ^ Map.AuthorNickName ^ " $z(" ^ Map.AuthorLogin ^ ")", 5000, 3, CUIConfig::EUISound::Silence, 0);
+		Message::SendBigMessage("The map is corrupted / out of date", 5000, 3, CUIConfig::EUISound::EndRound, 0);
+		sleep(8000);
+		G_GamePhase = "skip";
+		MatchEndRequested = True;
+	} else {
+		G_GamePhase = "init";
+	}
+}
 if(G_GamePhase == "init"){
 	declare Text authorMsg = "Author : $z" ^ Map.AuthorNickName ^ " $z(" ^ Map.AuthorLogin ^ ")";
 	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
@@ -114,54 +82,34 @@ if(G_GamePhase == "init"){
 	StartTime = Now;
 	EndTime = -1;
 	
-	G_FinishAny = False;
-	G_ScoresTable.ManialinkPage = CreateScoresTable();
 	G_GamePhase = "play";
 }
-
 if(G_GamePhase == "play"){
-	UpdatePlayersObstacle();
+	ObstacleMain();
 }
-Message::Loop();
-
 ***
 
 ***OnNewPlayer***
 ***
-Chrono::Create(Player.Id);
-G_StartsTime[Player.Id] = 0;
-G_Stamina[Player.Id] = False;
-if(!G_BestTimes.existskey(Player.Id)){
-	G_Finish[Player.Id] = 0;
-	G_BestTimes[Player.Id] = -1;
-	G_PreviousTimes[Player.Id] = 0;
-	declare Integer[Integer] CheckpointsTimes for Player;
-	CheckpointsTimes = Integer[Integer];
-}
-UpdateScoresTable();
+PM::Init(Player.Id, G_Checkpoints);
+
+declare UI <=> UIManager.GetUI(Player);
+UI.OverlayHideGauges = True;
 ***
 
 ***EndMap***
 ***
-foreach(Player, Players){
-	declare UI <=> UIManager.GetUI(Player);
-	G_BestTimes[Player.Id] = -1;
-	G_PreviousTimes[Player.Id] = 0;
-	UI.ManialinkPage = "";
-	UI.MarkersXML = "";
-	Chrono::Stop(Player.Id);
-	Chrono::Reset(Player.Id);
-}
+UIManager.UILayerDestroyAll();
+XmlRpc.SendCallback("endMap1", GetRankings());
 ***
-
 
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
-
+//XmlCallBack
 Void SendXmlRpcCallback(Text _CallbackName, CSmPlayer _Player, Integer _RunTime, Ident _CheckpointId) {
 	if (_Player == Null || _Player.IsFakePlayer || _Player.Score == Null || _CallbackName == "" || _RunTime <= 0) return;
-	declare RespawnCount for _Player = 0;
+	declare Respawns for _Player = 0;
 	declare JSON = "";
 	
 	// Player information
@@ -170,7 +118,7 @@ Void SendXmlRpcCallback(Text _CallbackName, CSmPlayer _Player, Integer _RunTime,
 	// Run information
 	JSON ^= """ "Run":{""";
 	JSON ^= Json::Stringify("Time", _RunTime)^",";
-	JSON ^= Json::Stringify("RespawnCount", RespawnCount)^",";
+	JSON ^= Json::Stringify("RespawnCount", Respawns)^",";
 	
 	declare CheckpointsTimeLast for _Player.Score = Integer[Ident];
 	JSON ^= Json::Stringify("CheckpointIndex", CheckpointsTimeLast.count-1)^",";
@@ -185,1167 +133,245 @@ Void SendNotice(CSmPlayer _Player, Text _Message){
 	UI.SendNotice(_Message, CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Silence, 0);
 }
 
-//Change weapon on check or spawn
-Void ChangeAmmoAndStamina(CSmPlayer _Player, Boolean _Respawn){
-	//Oncheckpoint
-	if(G_CheckpointNext.existskey(_Player.Id)){
-		if(G_CheckpointNext[_Player.Id] > 0){
-			declare Text CheckpointTag;
-			if(!_Respawn){
-				CheckpointTag = G_Checkpoints[G_CheckpointNext[_Player.Id]].Tag;
-			} else {
-				CheckpointTag = G_Checkpoints[G_CheckpointNext[_Player.Id] - 1].Tag;
-			}
-			declare AnchorDetails = TextLib::Split("|", CheckpointTag);
-		
-			if(AnchorDetails[0] == "Checkpoint"){
-				//Default
-				if(AnchorDetails.count == 1){
-					if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 4){
-						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
-						_Player.AmmoGain = 1.0;
-						_Player.StaminaGain = 1.0;
-						G_Stamina[_Player.Id] = False;
-						SendNotice(_Player, "Weapon ammo set to normal.");
-					}
-				} else {
-					if(TextLib::ToInteger(AnchorDetails[1]) == 11){ //Unlimited ammo !
-						if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 20){
-							SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 20);
-							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 20);
-							_Player.AmmoGain = 10.0;
-							SendNotice(_Player, "Weapon ammo set to unlimited.");
-						}
-					} else {
-						SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
-						SendNotice(_Player, "Weapon ammo set to " ^ TextLib::ToInteger(AnchorDetails[1]) ^ ".");
-						if(TextLib::ToInteger(AnchorDetails[4]) == 1){
-							_Player.AmmoGain = 1.0;
-							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
-						} else {
-							_Player.AmmoGain = 0.0;
-							SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
-							SendNotice(_Player, "No Ammo regeneration on this CP");
-						}
-						SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, TextLib::ToInteger(AnchorDetails[1]));
-					}
-					if(TextLib::ToInteger(AnchorDetails[2]) == 2 && !G_Stamina[_Player.Id]){
-					G_Stamina[_Player.Id] = True;
-					SendNotice(_Player, "$afaInfinite stamina.");
-					}
-					if(TextLib::ToInteger(AnchorDetails[2]) == 1 && _Player.Stamina < 3600){
-						SendNotice(_Player, "$aafStamina refilled.");
-						_Player.Stamina = 3600;
-						G_Stamina[_Player.Id] = False;
-					}
-					if(TextLib::ToInteger(AnchorDetails[2]) == 0 && G_Stamina[_Player.Id]){
-						G_Stamina[_Player.Id] = False;
-					}
-					if(TextLib::ToInteger(AnchorDetails[3]) == 0 && _Player.StaminaGain != 0.0){
-						_Player.StaminaGain = 0.0;
-						SendNotice(_Player, "$aafNo Stamina gain.");
-					}
-					if(TextLib::ToInteger(AnchorDetails[3]) == 1 && _Player.StaminaGain != 1.0){
-						_Player.StaminaGain = 1.0;
-						SendNotice(_Player, "$aafStamina gain.");
-					}
-				}
-			} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
-				if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
-					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
-					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
-					_Player.AmmoGain = 10.0;
-					SendNotice(_Player, "Weapon ammo set to unlimited.");
-				} else if(TextLib::SubText(_Player.CapturedLandmark.Tag, 10, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
-					SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
-					SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
-					_Player.AmmoGain = 0.0;
-					SendNotice(_Player, "No ammo.");
-				}
-			} else {
-				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
-				_Player.AmmoGain = 1.0;
-				SendNotice(_Player, "Weapon ammo set to normal.");
-			}
-		} else {
-			if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type2" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 10){
-				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 10);
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 10);
-				_Player.AmmoGain = 10.0;
-				SendNotice(_Player, "Weapon ammo set to unlimited.");
-			} else if(TextLib::SubText(G_MainSpawn.Tag, 5, 5) == "Type1" && GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != 0){
-				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 0);
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 0);
-				_Player.AmmoGain = 0.0;
-				SendNotice(_Player, "No ammo.");
-			} else {
-				SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
-				_Player.AmmoGain = 1.0;
-				SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 2);
-				_Player.StaminaGain = 1.0;
-				G_Stamina[_Player.Id] = False;
-			}
-		}
+Void SpawnStartPlayer(Ident _PlayerId){
+	if(Players.existskey(_PlayerId)){
+		declare _Player = Players[_PlayerId];
+
+		_Player.ArmorMax = 100;
+
+		SpawnPlayer(_Player, 0, 100, G_MainSpawn.PlayerSpawn, Now);
+		SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
+		SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
+
+		PM::RespawnPlayer(_Player.Id);
 	}
 }
 
-//Spawn player
-Void OSpawnPlayer(CSmPlayer _Player){
-	_Player.ArmorMax = 100;
-	
-	SpawnPlayer(_Player, 0, 100, G_MainSpawn.PlayerSpawn, Now);
-	ChangeAmmoAndStamina(_Player, False);
-}
+Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
+	if(Players.existskey(_PlayerId)){
+		declare _Player = Players[_PlayerId];
+		declare UI <=> UIManager.GetUI(_Player);
+		declare netread Boolean RespawnAtStart for UI;
 
-//Restart player
-Void RestartPlayer(CSmPlayer _Player, Boolean _CustomKey){
-	declare UI <=> UIManager.GetUI(_Player);
-	declare netread RespawnAtStart for UI = False;
-	declare netread RespawnAtStartKeyDefault for UI = True;
-
-	if(!RespawnAtStart){
+		//Full restart
 		if(_CustomKey){
-			if(RespawnAtStartKeyDefault){
-				if(G_CheckpointNext[_Player.Id] > 1){
-					ChangeAmmoAndStamina(_Player, True);
-					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
-					G_Respawns[_Player.Id] += 1;
-				} else {
-					Chrono::Stop(_Player.Id);
-					G_CheckpointNext[_Player.Id] = 0;
-					Chrono::Reset(_Player.Id);
-					G_StartsTime[_Player.Id] = 0;
-					G_Respawns[_Player.Id] = 0;
-					OSpawnPlayer(_Player);
-				}
-			} else {
-				Chrono::Stop(_Player.Id);
-				G_CheckpointNext[_Player.Id] = 0;
-				Chrono::Reset(_Player.Id);
-				G_StartsTime[_Player.Id] = 0;
-				G_Respawns[_Player.Id] = 0;
-				OSpawnPlayer(_Player);
-			}
+			SpawnStartPlayer(_Player.Id);
 		} else {
-			if(!RespawnAtStartKeyDefault){
-				if(G_CheckpointNext[_Player.Id] > 1){
-					ChangeAmmoAndStamina(_Player, True);
-					RespawnPlayer(_Player, G_Checkpoints[G_CheckpointNext[_Player.Id] - 1]);	
-					G_Respawns[_Player.Id] += 1;
-				} else {
-					Chrono::Stop(_Player.Id);
-					G_CheckpointNext[_Player.Id] = 0;
-					Chrono::Reset(_Player.Id);
-					G_StartsTime[_Player.Id] = 0;
-					G_Respawns[_Player.Id] = 0;
-					OSpawnPlayer(_Player);
-				}
-			} else {
-				Chrono::Stop(_Player.Id);
-				G_CheckpointNext[_Player.Id] = 0;
-				Chrono::Reset(_Player.Id);
-				G_StartsTime[_Player.Id] = 0;
-				G_Respawns[_Player.Id] = 0;
-				OSpawnPlayer(_Player);
-			}
-		}
-	} else {
-		Chrono::Stop(_Player.Id);
-		G_CheckpointNext[_Player.Id] = 0;
-		Chrono::Reset(_Player.Id);
-		G_StartsTime[_Player.Id] = 0;
-		G_Respawns[_Player.Id] = 0;
-		OSpawnPlayer(_Player);
-	}
-}
-
-//Update Player Manialink Interface
-Void UpdatePlayerInterface(CSmPlayer _Player){
-	declare UI <=> UIManager.GetUI(_Player); //Get UI for player
-	declare cpNext = G_CheckpointNext[_Player.Id]; //Get next checkpoint
-		
-	declare netread Boolean SwitchFullHud for UI;
-	declare netread Boolean SwitchExtraHud for UI;
-	
-	declare netread RespawnAtStart for UI = False;
-
-	//Force spectate someone
-	declare netread Text SpecTarget for UI;
-	declare CSmPlayer SpecPlayer for UI;
-
-	SpecPlayer = Null;
-
-	if(SpecTarget != "" && SpecTarget != _Player.Login){
-		//Search for the player wanted
-		foreach(OtherPlayer, Players){
-			if(OtherPlayer.Login == SpecTarget){
-				SpecPlayer = OtherPlayer;
-			}
-		}
-	}
-
-	UI.SpectatorForcedTarget = NullId;
-	UI.SpectatorAutoTarget = NullId;
-	UI.ForceSpectator = False;
-
-	if(SpecPlayer != Null && Players.exists(SpecPlayer) && !SpecPlayer.RequestsSpectate){
-		UI.SpectatorForcedTarget = SpecPlayer.Id;
-		UI.SpectatorAutoTarget = SpecPlayer.Id;
-		UI.ForceSpectator = True;
-	}
-
-	UI.MarkersXML = "";
-	UI.ManialinkPage = "";
-	
-	if(!_Player.RequestsSpectate){
-		if(cpNext != 0){
-			if(cpNext != G_CheckpointsCount){
-				UI.MarkersXML = """<marker label="Checkpoint {{{cpNext}}}" pos="{{{G_Checkpoints[cpNext].Position.X}}} {{{G_Checkpoints[cpNext].Position.Y + 2}}} {{{G_Checkpoints[cpNext].Position.Z}}}" />""";
-			} else {
-				UI.MarkersXML = """<marker label="Goal" pos="{{{G_Checkpoints[cpNext].Position.X}}} {{{G_Checkpoints[cpNext].Position.Y + 2}}} {{{G_Checkpoints[cpNext].Position.Z}}}" />""";
-			}
-		}
-		
-		declare progress = G_CheckpointNext[_Player.Id] - 1;
-		
-		declare Text BestTheoreticalText;
-		declare Text BestTimePersonal;
-		declare Text BestAllTheoreticalText;
-		declare Text PreviousTimePersonal;
-		declare Text NextCheckPersonal;
-		declare Text PreviousCheckPersonal;
-		
-		declare Integer[Integer] CheckpointsTimes for _Player;
-		declare Integer[Integer] CheckpointsIntTimes for _Player;
-			
-		declare Integer[Integer] CheckpointsBestTimes for _Player;
-		declare Integer[Integer] CheckpointsBestIntTimes for _Player;
-		
-		declare BestTheoretical = 0;
-		foreach(CPTime, CheckpointsBestIntTimes){
-			BestTheoretical += CPTime;
-		}
-		
-		declare BestAllTheoretical = 0;
-		foreach(CPTimeAll, G_BestChecksInt){
-			BestAllTheoretical += CPTimeAll;
-		}
-		
-		if(G_FinishAny){
-			BestAllTheoreticalText = TextLib::TimeToText(BestAllTheoretical, True);
-		} else {
-			BestAllTheoreticalText = "--:--,--";
-		}
-		
-		if(G_Finish[_Player.Id] != 0){
-			BestTheoreticalText = TextLib::TimeToText(BestTheoretical, True);
-		} else {
-			BestTheoreticalText = "--:--,--";
-		}
-		
-		if(G_Finish[_Player.Id] != 0 && G_CheckpointNext[_Player.Id] != 0 && CheckpointsTimes[G_CheckpointNext[_Player.Id]] != 0){
-			if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] - G_BestChecks[G_CheckpointNext[_Player.Id]] > 0){
-				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True) ^ " $f66[+" ^ TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] - G_BestChecks[G_CheckpointNext[_Player.Id]], True) ^ "]";	
-			} else {
-				NextCheckPersonal = TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]], True);
-			}
-		} else {
-			NextCheckPersonal = "--:--,--";
-		}
-		
-		if(G_CheckpointNext[_Player.Id] > 1){
-			PreviousCheckPersonal = TextLib::TimeToText(CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1], True);
-			if(G_Finish[_Player.Id] != 0){
-				declare diff = CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1];
-				if(diff > 0){
-					PreviousCheckPersonal = "$f66(+" ^ TextLib::TimeToText(diff, True) ^ ")";	
-				} else {
-					PreviousCheckPersonal = "$66f" ^ TextLib::TimeToText(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1], True);
-				}
-			}
-			if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id] - 1] - G_BestChecks[G_CheckpointNext[_Player.Id] - 1] > 0){
-				PreviousCheckPersonal ^= " $f66[+" ^ TextLib::TimeToText(CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1] - G_BestChecks[G_CheckpointNext[_Player.Id] - 1], True) ^ "]";
-			}
-		} else {
-			PreviousCheckPersonal = "--:--,--";
-		}
-		
-		if(G_PreviousTimes[_Player.Id] != 0){
-			PreviousTimePersonal = TextLib::TimeToText(G_PreviousTimes[_Player.Id], True);
-		} else {
-			PreviousTimePersonal = "--:--.--";	
-		}
-		
-		if(G_BestTimes[_Player.Id] != -1){
-			BestTimePersonal = TextLib::TimeToText(G_BestTimes[_Player.Id], True);
-		} else {
-			BestTimePersonal = "--:--.--";	
-		}
-		
-
-		if(progress < 0) progress = 0;
-		
-		//Show Full Hud
-		if(SwitchFullHud){
-			UI.ManialinkPage =	
-			"""
-			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$sProgress : {{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			
-			
-			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
-			
-			<frame posn="0 -12 0">
-			
-			
-			<quad posn="162 -68" sizen="48 14" halign="right" valign="center" bgcolor="00000055"/>
-			<label posn="128 -65 0" halign="center" valign="center" sizen="20 5" text="$sBest time" textsize="1" style="TextButtonMedium"/>
-			<label posn="128 -71 0" halign="center" valign="center" sizen="20 5" text="$sPrevious" textsize="1" style="TextButtonMedium"/>
-			<label posn="148 -65 0" sizen="19 5" text="$C33{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			<label posn="148 -71 0" sizen="19 5" text="$C30{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			
-			<quad posn="162 -53" sizen="62 10" halign="right" valign="center" bgcolor="00000055"/>
-			<label posn="121 -53 0" sizen="34 6" style="TextButtonMedium" text="$sBest Theoretical" id="time" halign="center" valign="center"/>			
-			<label posn="157 -53 0" sizen="42 5" text="$66f{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
-			
-			<quad posn="162 -40" sizen="62 10" halign="right" valign="center" bgcolor="00000055"/>
-			<label posn="121 -40 0" sizen="34 6" style="TextButtonMedium" text="$s(All) Best Theoretical" id="time" halign="center" valign="center"/>			
-			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
-			</frame>			
-			""";
 			if(!RespawnAtStart){
-				UI.ManialinkPage ^=	
-				"""
-				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | Respawns : {{{G_Respawns[_Player.Id]}}}"/>
-				""";
+				if(PM::GetCheckpointObjective(_Player.Id) > 1){
+					PM::RespawnPlayerAtLastCP(_Player.Id);
+				} else {
+					SpawnStartPlayer(_Player.Id);
+				}
 			} else {
-				UI.ManialinkPage ^=	
-				"""
-				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" textsize="1" text="$sRuns : {{{G_Finish[_Player.Id]}}} | $f00No respawn"/>
-				""";
+				SpawnStartPlayer(_Player.Id);
 			}
-		} else { //Show Minimal Hud
-			UI.ManialinkPage =
-			"""
-			<label posn="-48 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{progress}}}/{{{G_CheckpointsCount}}}"/>
-			
-			<label posn="80 -82 0" sizen="19 5" text="$fff{{{MathLib::FloorInteger(_Player.Speed*1.5)}}}" style="TextRaceChrono" halign="center" valign="center"/>
-			
-			<frame posn="0 -12 0">
-			
-			
-			<quad posn="162 -68" sizen="24 14" halign="right" valign="center" bgcolor="00000055"/>
-			
-			<label posn="148 -65 0" sizen="19 5" text="$C33{{{BestTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			<label posn="148 -71 0" sizen="19 5" text="$C30{{{PreviousTimePersonal}}}" style="TextRaceChrono" textsize="3" halign="center" valign="center"/>
-			
-			<quad posn="162 -53" sizen="28 10" halign="right" valign="center" bgcolor="00000055"/>
-		
-			<label posn="157 -53 0" sizen="42 5" text="$66f{{{BestTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
-			
-			<quad posn="162 -40" sizen="28 10" halign="right" valign="center" bgcolor="00000055"/>
-		
-			<label posn="157 -40 0" sizen="42 5" text="$33f{{{BestAllTheoreticalText}}}" style="TextRaceChrono" textsize="4" halign="right" valign="center"/>
-			</frame>
-			""";
-			if(!RespawnAtStart){
-				UI.ManialinkPage ^=	
-				"""
-				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}} | {{{G_Respawns[_Player.Id]}}}"/>
-				""";
-			} else {
-				UI.ManialinkPage ^=	
-				"""
-				<label posn="50 -76 0" halign="center" valign="center" style="TextButtonMedium" text="$s{{{G_Finish[_Player.Id]}}}"/>
-				""";
-			}
-		}
-
-		if(SwitchExtraHud){
-			UI.ManialinkPage ^=
-			"""
-			<quad posn="-40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
-			<quad posn="40 -65" sizen="36 8" halign="center" valign="center" bgcolor="00000055"/>
-			<label posn="-50 -61 0" sizen="34 6" style="TextButtonMedium" text="$sPrevious" id="time" halign="center" valign="center"/>
-			<label posn="30 -61 0" sizen="34 6" style="TextButtonMedium" text="$sNext" id="time" halign="center" valign="center"/>			
-			<label posn="-40 -65 1" sizen="42 5" text="$f99{{{PreviousCheckPersonal}}}" style="TextRaceChrono" textsize="2" halign="center" valign="center"/>
-			<label posn="40 -65 1" sizen="42 5" text="$9f9{{{NextCheckPersonal}}}" style="TextRaceChrono" textsize="2" halign="center" valign="center"/>
-			""";
 		}
 	}
 }
 
-//Update score tables for players
-Void UpdateScoresTable(){
-	
-	declare netwrite Text[] G_PlayersScoresTimes for Teams[0];
-	declare netwrite Text[Text] Net_Checkpoints for Teams[0];
+Void CheckpointEvent(Ident _PlayerId){
+	if(Players.existskey(_PlayerId)){
+		PM::DoCheckpointProgress(_PlayerId);
 
-	declare Integer[] Times;
-	declare CSmPlayer[] PlayerList;
-	
-	Net_Checkpoints.clear();
+		declare _Player = Players[_PlayerId];
 
-	G_PlayersScoresTimes.clear();
-	Times.clear();
-	PlayerList.clear();
+		declare Text message;
+		declare sound = 1;
 
-	foreach(Time, G_BestTimes){
-		Times.add(Time);
+		declare Text diffPersonnal;
+		declare Text diffBest;
+
+		if(PM::IsNotHisFirstRun(_PlayerId)){
+			if(PM::GetLastCPDiff(_PlayerId) < 0){
+				diffPersonnal = " $99f" ^ TextLib::TimeToText(PM::GetLastCPDiff(_PlayerId), True);
+				sound = 3;
+			} else {
+				diffPersonnal = " $f99+" ^ TextLib::TimeToText(PM::GetLastCPDiff(_PlayerId), True);
+				sound = 0;
+			}
+		}
+
+		if(PM::IsMapFinishedBySomeone()){
+			if(PM::GetLastCPDiffBest(_PlayerId) < 0){
+				diffBest = " $ff0" ^ TextLib::TimeToText(PM::GetLastCPDiffBest(_PlayerId), True);
+				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Record, 0);
+			} else {
+				diffBest = " $999+" ^ TextLib::TimeToText(PM::GetLastCPDiffBest(_PlayerId), True);
+			}
+		}
+		message = "Time : " ^ TextLib::TimeToText(PM::GetTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
+		
+
+		Message::SendStatusMessage(_Player, message, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);
 	}
+}
 
+Void FinishEvent(Ident _PlayerId){
+	if(Players.existskey(_PlayerId)){
+		PM::DoCheckpointProgress(_PlayerId);
+		PM::CalculateTime(_PlayerId);
+		
+		declare _Player = Players[_PlayerId];
+
+		declare Text message;
+
+		declare Text diffPersonnal;
+		declare Text diffBest;
+
+		if(PM::IsNotHisFirstRun(_PlayerId)){
+			if(PM::GetBestTimeDiff(_Player.Id) < 0){
+				diffPersonnal = " $00f" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
+				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::VictoryPoint, 0);
+			} else {
+				diffPersonnal = " $f00+" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
+			}
+		}
+
+		if(PM::IsMapFinishedBySomeone()){
+			if(PM::GetBestTimeDiffAll(_PlayerId) < 0){
+				diffBest = " $ff0" ^ TextLib::TimeToText(PM::GetBestTimeDiffAll(_PlayerId), True);
+				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Record, 0);
+			} else {
+				diffBest = " $999+" ^ TextLib::TimeToText(PM::GetBestTimeDiffAll(_PlayerId), True);
+			}
+		}
+
+		message = "Final Time : " ^ TextLib::TimeToText(PM::GetLastTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
+		
+		
+		Message::SendStatusMessage(_Player, message, 5000, 3, CUIConfig::EUISound::EndRound, 0);
+
+		SendXmlRpcCallback("OnFinish", _Player, PM::GetLastTime(_Player.Id), G_Checkpoints[G_Checkpoints.count - 1].Id);
+
+		PM::RaceFinish(_PlayerId);
+		
+		UnspawnPlayer(_Player);
+	}
+}
+
+Void ObstacleMain(){
+	//Players
 	foreach(Player, Players){
-		if(G_CheckpointNext.existskey(Player.Id)){
-			if(G_CheckpointNext[Player.Id] > 1 && G_CheckpointNext[Player.Id] - 1 < G_CheckpointsCount){
-				Net_Checkpoints[Player.Login] = TextLib::ToText(G_CheckpointNext[Player.Id] - 1);
-			} else {
-				Net_Checkpoints[Player.Login] = "$609N/A";
+		if(!Player.RequestsSpectate){
+			PM::Update(Player.Id);
+			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
+				SpawnStartPlayer(Player.Id);
 			}
-		} else {
-			Net_Checkpoints[Player.Login] = "$609N/A";
-		}
-		PlayerList.add(Player);
-	}
-
-	Times = Times.sort();
-	
-	//Players finished
-	foreach(Time, Times){
-		foreach(Player, PlayerList){
-			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time != -1){
-				declare Text temp;
-				temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
-				if(!G_PlayersScoresTimes.exists(temp)){
-					G_PlayersScoresTimes.add(temp);	
-				}
+			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && !PM::IsRaceStarted(Player.Id)){
+				PM::RaceStart(Player.Id);
 			}
-		}
-	}
-	
-	//Players not finished
-	foreach(Time, Times){
-		foreach(Player, PlayerList){
-			if(G_BestTimes.existskey(Player.Id) && Time == G_BestTimes[Player.Id] && Time == -1){
-				declare Text temp;
-				temp = Time ^ "|" ^ Player.Login ^ "|" ^ Player.Name;
-				if(!G_PlayersScoresTimes.exists(temp)){
-					G_PlayersScoresTimes.add(temp);	
-				}
-			}
-		}
-	}
-}
 
-//Checkpoint Managament - INCLUDING FINISH
-Void CheckpointManage(CSmPlayer _Player){
-	declare Integer[Integer] CheckpointsTimes for _Player;
-	declare Integer[Integer] CheckpointsIntTimes for _Player;
-	
-	declare Integer[Integer] CheckpointsBestTimes for _Player;
-	declare Integer[Integer] CheckpointsBestIntTimes for _Player;
-	
-	declare Integer LastCheckTime for _Player;
-	declare Integer diff for _Player;
-	declare Integer diffInt for _Player;
-	
-	CheckpointsTimes[G_CheckpointNext[_Player.Id]] = Now - G_StartsTime[_Player.Id];	
-	
-	if(G_CheckpointNext[_Player.Id] == 1){
-		LastCheckTime = Now - G_StartsTime[_Player.Id];
-		CheckpointsIntTimes[G_CheckpointNext[_Player.Id]] = Now - G_StartsTime[_Player.Id];
-	} else {
-		LastCheckTime = CheckpointsTimes[G_CheckpointNext[_Player.Id]] - (Now - G_StartsTime[_Player.Id]);
-		CheckpointsIntTimes[G_CheckpointNext[_Player.Id]] = CheckpointsTimes[G_CheckpointNext[_Player.Id]] - CheckpointsTimes[G_CheckpointNext[_Player.Id] - 1];
-	}
-	
-	//Check if checkpoint absolute times are better
-	//If first run
-	if(G_Finish[_Player.Id] == 0){
-		CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] = CheckpointsTimes[G_CheckpointNext[_Player.Id]];
-		G_BestChecks[G_CheckpointNext[_Player.Id]] = CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
-	} else {
-		diff = CheckpointsTimes[G_CheckpointNext[_Player.Id]] - CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
-		if(CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] > CheckpointsTimes[G_CheckpointNext[_Player.Id]]){
-			CheckpointsBestTimes[G_CheckpointNext[_Player.Id]] = CheckpointsTimes[G_CheckpointNext[_Player.Id]];
-			if(G_BestChecks[G_CheckpointNext[_Player.Id]] > CheckpointsBestTimes[G_CheckpointNext[_Player.Id]]){
-				G_BestChecks[G_CheckpointNext[_Player.Id]] = CheckpointsBestTimes[G_CheckpointNext[_Player.Id]];
-			}
-		}
-	}
-	
-	//Check if checkpoint relative times are better
-	if(G_Finish[_Player.Id] == 0){
-		CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] = CheckpointsIntTimes[G_CheckpointNext[_Player.Id]];
-	} else {
-		diffInt = CheckpointsIntTimes[G_CheckpointNext[_Player.Id]] - CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
-		if(CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] > CheckpointsIntTimes[G_CheckpointNext[_Player.Id]]){
-			CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] = CheckpointsIntTimes[G_CheckpointNext[_Player.Id]];
-		}
-	}
-	
-	//Check if checkpoint relative times are better (ALL PLAYERS)
-	declare Integer diffIntBest;
-	
-	if(G_BestChecksInt.existskey(G_CheckpointNext[_Player.Id])){
-		diffIntBest = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]] - G_BestChecksInt[G_CheckpointNext[_Player.Id]];
-		if(diffIntBest < 0){
-			G_BestChecksInt[G_CheckpointNext[_Player.Id]] = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
-		}
-	} else {
-		G_BestChecksInt[G_CheckpointNext[_Player.Id]] = CheckpointsBestIntTimes[G_CheckpointNext[_Player.Id]];
-	}
-}
-
-//When a player passes checkoint
-Void CheckpointEvent(CSmPlayer _Player){	
-	declare Integer[Integer] CheckpointsTimes for _Player;
-	declare Integer[Integer] CheckpointsIntTimes for _Player;
-	
-	declare Integer[Integer] CheckpointsBestTimes for _Player;
-	declare Integer[Integer] CheckpointsBestIntTimes for _Player;
-	
-	declare Integer diff for _Player;
-	declare Integer diffInt for _Player;
-	
-	CheckpointManage(_Player);
-	
-	declare Text diffText;
-	declare Text diffIntText;
-	
-	diffText = "";
-	diffIntText = "";
-	
-	declare sound = 1;
-		
-	if(G_Finish[_Player.Id] != 0){
-		if(diff < 0){
-			diffText = " ($66f" ^ TextLib::TimeToText(diff, True) ^ "$fff)";
-			sound = 3;
-		} else {
-			diffText = " ($f66+" ^ TextLib::TimeToText(diff, True) ^ "$fff)";
-			sound = 0;
-		}
-		if(diffInt < 0){
-			diffIntText = " ($66f" ^ TextLib::TimeToText(diffInt, True) ^ "$fff)";
-			Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Record, 0);
-		} else {
-			diffIntText = " ($f66+" ^ TextLib::TimeToText(diffInt, True) ^ "$fff)";
-		}
-	}
-	
-	
-	
-	G_CheckpointNext[_Player.Id] += 1;	
-	
-	Message::SendStatusMessage(_Player, "Time : " ^ TextLib::TimeToText(Now - G_StartsTime[_Player.Id], True) ^ diffText ^ "\nCheckpoint : " ^ TextLib::TimeToText(CheckpointsIntTimes[G_CheckpointNext[_Player.Id] - 1],True) ^ diffIntText, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);
-	UpdateScoresTable();
-}
-
-//When a player passes finish
-Void FinishEvent(CSmPlayer _Player){	
-	CheckpointManage(_Player);
-
-	declare time = Now - G_StartsTime[_Player.Id];
-	declare diffFinal = time - G_BestTimes[_Player.Id];
-	
-	declare Text diffFinalText;
-	declare newRecord = False;
-		
-	G_PreviousTimes[_Player.Id] = time;
-	
-	//if first run
-	if(G_Finish[_Player.Id] == 0){
-		G_BestTimes[_Player.Id] = G_PreviousTimes[_Player.Id];
-		diffFinalText = "";
-	} else {
-		//Check if best time
-		if(diffFinal < 0){
-			G_BestTimes[_Player.Id] = G_PreviousTimes[_Player.Id];
-			newRecord = True;
-			diffFinalText = " ($00f" ^ TextLib::TimeToText(diffFinal, True) ^ "$fff)";
-		} else {
-			diffFinalText = " ($f00+" ^ TextLib::TimeToText(diffFinal, True) ^ "$fff)";
-		}
-	}
-	
-	if(newRecord){
-		Message::SendStatusMessage(_Player, "Final time : " ^ TextLib::TimeToText(Now - G_StartsTime[_Player.Id], True) ^ diffFinalText, 5000, 3, CUIConfig::EUISound::VictoryPoint, 0);
-	} else {
-		Message::SendStatusMessage(_Player, "Final time : " ^ TextLib::TimeToText(Now - G_StartsTime[_Player.Id], True) ^ diffFinalText, 5000, 3, CUIConfig::EUISound::EndMatch, 0);
-	}
-	
-	//Send
-	SendXmlRpcCallback("OnFinish", _Player, time, G_Checkpoints[G_CheckpointNext[_Player.Id]].Id);
-	
-	//Unspawn player and stuff
-	UnspawnPlayer(_Player);
-	G_Finish[_Player.Id] += 1;
-	G_CheckpointNext[_Player.Id] = 0;
-	Chrono::Stop(_Player.Id);
-	Chrono::Reset(_Player.Id);
-	
-	SendNotice(_Player, "Run completed.");
-	UpdateScoresTable();
-	G_FinishAny = True;
-	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
-}
-
-Text CreateUIEventManager(){
-	declare Manialink = """
-		<script><!--
-
-		declare ShowOptionsMenu for UI = 0;
-		declare netwrite RespawnKeyToggle for UI = "F4";
-
-		declare netwrite CustomKeyTime for UI = 0;
-		declare netwrite CustomKey for UI = "E";
-
-		declare netwrite RespawnAtStart for UI = False;
-
-		while (True) {
-			yield;
-			// Process events
-			foreach (Event in PendingEvents) {
-				switch (Event.Type) {
-					case CMlEvent::Type::MouseClick: {
-						if(Event.ControlId == "closeOptionsMenu"){
-							ShowOptionsMenu = 0;
-						}
+			if(Player.CapturedLandmark != Null){
+				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
+					if(PM::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
+						FinishEvent(Player.Id);
 					}
-					case CMlEvent::Type::KeyPress: {
-						if(Event.KeyName == RespawnKeyToggle){
-							RespawnAtStart = !RespawnAtStart;
-						}
-						if(Event.KeyName == CustomKey){
-							CustomKeyTime = ArenaNow;
+				}
+				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
+					if(Player.CapturedLandmark.Order == G_Checkpoints[PM::GetCheckpointObjective(Player.Id)].Order){
+						if(PM::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
+							FinishEvent(Player.Id);
+						} else {
+							CheckpointEvent(Player.Id);
 						}
 					}
 				}
 			}
-		}
-		--></script>
-	""";
-	return Manialink;
-}
-
-Text CreateScoresTable(){
-	declare Manialink = """
-		<script><!--
-
-		#Include "TextLib" as TextLib
-		#Include "MathLib" as MathLib
-		
-
-		declare Buttons = [(Page.GetFirstChild("prev") as CMlQuad), (Page.GetFirstChild("next") as CMlQuad)];
-
-		declare Scores = [(Page.GetFirstChild("Scores") as CMlFrame)];
-
-		declare Labels = [
-			(Page.GetFirstChild("currentPage") as CMlLabel),
-			(Page.GetFirstChild("1") as CMlLabel),
-			(Page.GetFirstChild("2") as CMlLabel),
-			(Page.GetFirstChild("3") as CMlLabel),
-			(Page.GetFirstChild("4") as CMlLabel),
-			(Page.GetFirstChild("5") as CMlLabel),
-			(Page.GetFirstChild("6") as CMlLabel),
-			(Page.GetFirstChild("7") as CMlLabel),
-			(Page.GetFirstChild("8") as CMlLabel),
-			(Page.GetFirstChild("9") as CMlLabel),
-			(Page.GetFirstChild("10") as CMlLabel)
-			];
-
-		declare LabelsTime = [
-			(Page.GetFirstChild("time1") as CMlLabel),
-			(Page.GetFirstChild("time2") as CMlLabel),
-			(Page.GetFirstChild("time3") as CMlLabel),
-			(Page.GetFirstChild("time4") as CMlLabel),
-			(Page.GetFirstChild("time5") as CMlLabel),
-			(Page.GetFirstChild("time6") as CMlLabel),
-			(Page.GetFirstChild("time7") as CMlLabel),
-			(Page.GetFirstChild("time8") as CMlLabel),
-			(Page.GetFirstChild("time9") as CMlLabel),
-			(Page.GetFirstChild("time10") as CMlLabel)
-			];
-
-		declare LabelsCP = [
-			(Page.GetFirstChild("cp1") as CMlLabel),
-			(Page.GetFirstChild("cp2") as CMlLabel),
-			(Page.GetFirstChild("cp3") as CMlLabel),
-			(Page.GetFirstChild("cp4") as CMlLabel),
-			(Page.GetFirstChild("cp5") as CMlLabel),
-			(Page.GetFirstChild("cp6") as CMlLabel),
-			(Page.GetFirstChild("cp7") as CMlLabel),
-			(Page.GetFirstChild("cp8") as CMlLabel),
-			(Page.GetFirstChild("cp9") as CMlLabel),
-			(Page.GetFirstChild("cp10") as CMlLabel)
-			];
-
-		declare LabelPlayers = [
-			(Page.GetFirstChild("players") as CMlLabel)
-		];
 
 
-		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
+			//Handle stamina if illimited;
+			declare Boolean StaminaUnlimited for Player;
 
-		declare netread Text[] G_PlayersScoresTimes for Teams[0];
-		declare netread Text[Text] Net_Checkpoints for Teams[0];
-
-		declare netread Integer Net_PlayersCount for Teams[0];
-
-		declare netwrite Integer currentPage for UI;
-		declare ShowOptionsMenu for UI = 0;
-		declare netwrite SpecTarget for UI = "";
-
-		currentPage = 0;
-
-		while (True) {
-			if(ShowOptionsMenu == 0){
-				Scores[0].Visible = True;
-			} else {
-				Scores[0].Visible = False;
-			}
-			if(Net_PlayersCount < 7){
-				currentPage = 0;
-			}
-			LabelPlayers[0].Value = "Players : " ^ Net_PlayersCount;
+			//Respawn CP or Respawn
+			declare UI <=> UIManager.GetUI(Player);
+			declare LastCustomKeyTime for Player = 0;
+			declare netread CustomKeyTime for UI = 0;
 			
-			declare firstTime = 0;
-			if(Net_PlayersCount > 7){
-				Labels[0].Value = TextLib::ToText(currentPage + 1) ^ "/" ^ TextLib::ToText(MathLib::CeilingInteger(Net_PlayersCount/10.0));
-			} else {
-				Labels[0].Value = "";
+			if (CustomKeyTime > LastCustomKeyTime) {
+				ManageRespawnPlayer(Player.Id, True);
+				LastCustomKeyTime = CustomKeyTime;
 			}
 
-			if(G_PlayersScoresTimes.existskey(currentPage * 10 + 0)){
-				Labels[1].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[2];
-				declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[0]);
-				firstTime = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[0])[0]);
-				LabelsTime[0].Value = TextLib::TimeToText(time, True);
-				if(currentPage == 0){
-					if(time != -1){
-						LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;
-					} else {
-						LabelsTime[0].Value = "--:--.--";
-					}
-				} else {
-					if(time != -1){
-						LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;	
-					} else {
-						LabelsTime[0].Value = "--:--.--";
-					}
-				}
-				LabelsCP[0].Value = "$609" ^ Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[1]];
-			} else {
-				LabelsCP[0].Value = "$609N/A";
-				Labels[1].Value = "No Player";
-				LabelsTime[0].Value = "--:--.--";
-				if(currentPage == 0){
-					LabelsTime[0].Value = "$FF6" ^ LabelsTime[0].Value;
-				}
-			}
-
-			declare index = 1;
-
-			while(index < 10){
-				if(G_PlayersScoresTimes.existskey(currentPage * 10 + index)){
-					Labels[1 + index].Value = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[2];
-					declare time = TextLib::ToInteger(TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[0]);
-					LabelsTime[index].Value = TextLib::TimeToText(time, True);
-					if(currentPage == 0){
-						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
-					}
-					if(time != -1){
-						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
-					} else {
-							LabelsTime[index].Value = "--:--.--";
-					}
-					LabelsCP[index].Value = "$609" ^ Net_Checkpoints[TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + index])[1]];
-				} else {
-					LabelsCP[index].Value = "$609N/A";
-					Labels[1 + index].Value = "No Player";
-					LabelsTime[index].Value = "--:--.--";
-					if(currentPage == 0){
-						LabelsTime[index].Value = "$FF6" ^ LabelsTime[index].Value;
-					}
-				}
-				index += 1;
-			}
-
-			// Process events
-			foreach (Event in PendingEvents) {
-				switch(Event.Type){
-					case CMlEvent::Type::MouseClick:{
-						if(Event.ControlId == "prev"){
-							if(currentPage > 0){
-								currentPage -= 1;
-							}
-						}
-						if(Event.ControlId == "next"){
-							if(currentPage < MathLib::CeilingInteger(Net_PlayersCount/10.0) - 1){
-								currentPage += 1;
-							}
-						}
-						if(Event.ControlId == "spec1"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 0)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10])[1];
-							}
-						}
-						if(Event.ControlId == "spec2"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 1)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 1])[1];
-							}
-						}
-						if(Event.ControlId == "spec3"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 2)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 2])[1];
-							}
-						}
-						if(Event.ControlId == "spec4"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 3)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 3])[1];
-							}
-						}
-						if(Event.ControlId == "spec5"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 4)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 4])[1];
-							}
-						}
-						if(Event.ControlId == "spec6"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 5)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 5])[1];
-							}
-						}
-						if(Event.ControlId == "spec7"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 6])[1];
-							}
-						}
-						if(Event.ControlId == "spec8"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 7])[1];
-							}
-						}
-						if(Event.ControlId == "spec9"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 8])[1];
-							}
-						}
-						if(Event.ControlId == "spec10"){
-							if(G_PlayersScoresTimes.existskey(currentPage * 10 + 6)){
-								SpecTarget = TextLib::Split("|", G_PlayersScoresTimes[currentPage * 10 + 9])[1];
-							}
-						}
-					}
-				}
-			}
-			yield;
-		}
-		--></script>
-		<frame id="Scores" posn="0 8 0">
-			<label posn="-78 37 1" sizen="133 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1"/>
-			<label posn="-78 33 1" sizen="151 4" text="Server : {{{ServerName}}}" textsize="1"/>
-			<quad posn="0 -13.5 0" sizen="160 104" bgcolor="101010AA" halign="center" valign="center"/>
-			<frame posn="0 2 0">
-				<label posn="-75 24 1" sizen="69 5" text="NickName" valign="center" halign="left" textsize="2"/>
-				<label posn="4 23 1" sizen="20 5" text="CP" textsize="2" halign="center" valign="center"/>
-				<label posn="73 24 1" sizen="40 5" text="Time" valign="center" halign="right" textsize="2"/>
-				<quad posn="0 -21 0.5" sizen="158 82" bgcolor="03142AAA" halign="center" valign="center"/>
-
-				<frame posn="-10 25 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="1" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec1"/>
-					<label id="time1" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp1" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 17 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="2" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec2"/>
-					<label id="time2" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp2" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 9 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="3" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec3"/>
-					<label id="time3" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp3" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 1 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="4" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec4"/>
-					<label id="time4" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp4" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 -7 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="5" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec5"/>
-					<label id="time5" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp5" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 -15 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="6" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec6"/>
-					<label id="time6" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp6" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 -23 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="7" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec7"/>
-					<label id="time7" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp7" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 -31 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="8" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec8"/>
-					<label id="time8" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp8" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<frame posn="-10 -39 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="9" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec9"/>
-					<label id="time9" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp9" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-				
-				<frame posn="-10 -47 1">
-					<quad posn="-68 -10 0" sizen="156 7" bgcolor="111111C6" halign="left" valign="center"/>
-					<label id="10" posn="-61 -10 0" sizen="70 5" text="No player" valign="center" halign="left" textsize="2"/>
-					<quad posn="-67 -7 1" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" id="spec10"/>
-					<label id="time10" posn="85 -8 0" sizen="60 6" text="--:--.--" style="TextCardMedium" textsize="3" halign="right"/>
-					<label posn="14 -10 1" sizen="13 5" text="$609N/A" id="cp10" style="UiDriving_BgBottom" textsize="2" halign="center" valign="center"/>
-				</frame>
-
-				<quad id="next" posn="72 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowNext" scriptevents="1"/>
-				<quad id="prev" posn="67 -62 1" sizen="6 6" bgcolor="FFFA" style="Icons64x64_1" substyle="ArrowPrev" scriptevents="1"/>
-				<label id="currentPage" posn="0 -64 1" sizen="20 5" text="[currentPage]" valign="center" halign="center" textsize="2"/>
-				<label id="players" posn="-77 -64 1" sizen="58 5" text="Players" textsize="2" valign="center"/>
-			</frame>			
-		</frame>
-		""";
-
-	return Manialink;
-}
-
-Void CreateUIOptionsMenu(){
-	
-	G_OptionsMenu.ManialinkPage = """
-		<script><!--
-		declare ShowOptionsMenu for UI = 0;
-
-		declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame),(Page.GetFirstChild("Help") as CMlFrame)];
-
-		declare Labels = [
-			(Page.GetFirstChild("showOptionsMenu") as CMlLabel),
-			(Page.GetFirstChild("showHud") as CMlLabel),
-			(Page.GetFirstChild("extraHud") as CMlLabel),
-			(Page.GetFirstChild("respawnKeyDefault") as CMlLabel),
-			(Page.GetFirstChild("respawnModeKey") as CMlLabel),
-			(Page.GetFirstChild("customKeyText") as CMlLabel),
-			(Page.GetFirstChild("customKeyDesc") as CMlLabel),
-			(Page.GetFirstChild("customKey") as CMlLabel),
-			(Page.GetFirstChild("info") as CMlLabel)
-		];
-
-		declare netwrite SwitchFullHud for UI = False;
-		declare netwrite SwitchExtraHud for UI = False;
-		declare SwitchHelp for UI = True;
-
-		declare RespawnKeyToggleEdit for UI = False;
-		declare CustomKeyEdit for UI = False;
-
-		declare netwrite RespawnKeyToggle for UI = "F4";
-		declare CustomKey for UI = "E";
-		declare netwrite RespawnAtStartKeyDefault for UI = True;
-
-		while (True) {
-			if(Frame[0].Visible && ShowOptionsMenu == 0){
-				Frame[0].Visible = False;
-				Labels[0].Visible = True;
-			}
-			if(!Frame[0].Visible && ShowOptionsMenu == 1){
-				Frame[0].Visible = True;
-				Labels[0].Visible = False;
-			}
-			if(SwitchHelp){
-				Frame[1].Visible = True;
-			} else {
-				Frame[1].Visible = False;
-			}
-
-			if(SwitchFullHud){
-				Labels[1].Value = "Yes";
-			} else {
-				Labels[1].Value = "No";
-			}
-			if(SwitchExtraHud){
-				Labels[2].Value = "Yes";
-			} else {
-				Labels[2].Value = "No";
-			}
-			if(RespawnAtStartKeyDefault){
-				Labels[3].Value = "Restart";
-				Labels[5].Value = "Key binding for : $afaRespawn at last CP";
-				Labels[6].Value = "$aafIf you use your default respawn key to respawn at start but you still want to respawn at last CP. Which key do you want to use ?";
-				Labels[8].Value = "Press your user respawn key to Restart, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to respawn at Last CP. Hold Alt to activate mouse / Press H to switch on/off this stuff.";
-			} else {
-				Labels[3].Value = "Respawn at last CP";
-				Labels[5].Value = "Key binding for : $faaRestart";
-				Labels[6].Value = "$aafIf you use your default respawn key to respawn at last cp but you still want to respawn at start. Which key do you want to use ?";
-				Labels[8].Value = "Press your user respawn key to Respawn at Last CP, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to restart. Hold Alt to activate mouse / Press H to switch on/off this stuff.";
-			}
-			if(!RespawnKeyToggleEdit){
-				Labels[4].Value = RespawnKeyToggle;
-			} else {
-				Labels[4].Value = "Press new key";
-			}
-			if(!CustomKeyEdit){
-				Labels[7].Value = CustomKey;
-			} else {
-				Labels[7].Value = "Press new key";
-			}			
-			yield;
-			// Process events
-			foreach (Event in PendingEvents) {
-				switch (Event.Type) {
-					case CMlEvent::Type::MouseClick: {
-						if(Event.ControlId == "closeOptionsMenu"){
-							ShowOptionsMenu = 0;
-						}
-						if(Event.ControlId == "showOptionsMenu"){
-							if(ShowOptionsMenu == 0){
-								ShowOptionsMenu = 1;
-							} else {
-								ShowOptionsMenu = 0;
-							}
-						}
-						if(Event.ControlId == "showHud"){
-							SwitchFullHud = !SwitchFullHud;
-							
-						}
-						if(Event.ControlId == "extraHud"){
-							SwitchExtraHud = !SwitchExtraHud;
-						}
-						if(Event.ControlId == "respawnKeyDefault"){
-							RespawnAtStartKeyDefault = !RespawnAtStartKeyDefault;
-						}
-						if(Event.ControlId == "respawnModeKey"){
-							RespawnKeyToggleEdit = True;
-						}
-						if(Event.ControlId == "customKey"){
-							CustomKeyEdit = True;
-						}
-					}
-					case CMlEvent::Type::KeyPress: {
-						if(RespawnKeyToggleEdit){
-							RespawnKeyToggleEdit = False;
-							RespawnKeyToggle = Event.KeyName;
-						}
-						if(CustomKeyEdit){
-							CustomKeyEdit = False;
-							CustomKey = Event.KeyName;
-						}
-						if(Event.KeyName == "H"){
-							SwitchHelp = !SwitchHelp;
-						}
-					}
-				}
+			if(StaminaUnlimited){
+				Player.Stamina = 3600;
 			}
 		}
-		--></script>
-		<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
-		<frame id="Help">
-			<label id="info" posn="-158 84 0" sizen="83 9" text="" textsize="1" autonewline="1"/>
-			<label posn="-158 81 0" sizen="79 5" text="" textsize="1"/>
-			<label id="showOptionsMenu" posn="-158 74 0" sizen="79 4" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
-		</frame>
-		<frame id="OptionsMenu">
-			<quad posn="0 0 0" sizen="214 98" bgcolor="000000C6" valign="center" halign="center"/>
-			<label posn="106 48 1" sizen="70 6" text="Options" style="TextTitle3" textsize="3" halign="right"/>
-			<label posn="-105 41 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
-			<label posn="-104 36 1" sizen="69 5" text="Show Info Hud" textsize="2"/>
-			<label posn="-103 32 1" sizen="135 10" text="$aafShow/Hide what values means. (Best Time, Previous time, Respawns, Runs, CP Progress, Best Theoretical, All Best Theoretical)" textsize="2" autonewline="1"/>
-			<label posn="47 34 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
-			<label posn="-104 22 1" sizen="69 5" text="Show Extra Hud" textsize="2"/>
-			<label posn="-103 18 1" sizen="116 10" text="$aafShow/Hide extra stuff : Previous CP Info and Next CP Info" textsize="2" autonewline="1"/>
-			<label posn="47 21 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
-			<label posn="-105 11 1" sizen="70 6" text="Other Options" style="TextTitle3" textsize="2"/>
-			<label posn="-103 6 1" sizen="69 5" text="Default respawn key function" textsize="2"/>
-			<label posn="47 2 1" sizen="20 5" text="Restart" style="CardButtonMediumXL" scriptevents="1" id="respawnKeyDefault"/>
-			<label posn="-102 2 1" sizen="137 10" text="$aafDefine what your default respawn key do : Respawn at last CP or Restart your run. (Forced to respawn at start if respawn at last CP is deactivated)" textsize="2" autonewline="1"/>
-			<label posn="-103 -8 1" sizen="69 5" text="Respawn behaviour key" textsize="2"/>
-			<label posn="47 -11 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnModeKey"/>
-			<label posn="-101 -12 1" sizen="116 10" text="$aafRespawn at start or at last CP passed. Rebind key." textsize="2" autonewline="1"/>
-			<label id="customKeyText" posn="-103 -22 1" sizen="69 5" text="Key binding for : Respawn at last CP" textsize="2"/>
-			<label posn="47 -26 1" sizen="20 5" text="E" style="CardButtonMediumXL" scriptevents="1" id="customKey"/>
-			<label id="customKeyDesc" posn="-101 -26 1" sizen="116 10" text="$aafIf you use your default respawn key to respawn at start but you still want to respawn at last CP. Which key do you want to use ?" textsize="2" autonewline="1"/>
-			<label posn="-108 -37 2" sizen="20 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
-		</frame>
-	""";
+	}
+
+	//Managing events
+	foreach(Event, PendingEvents){
+		switch(Event.Type){
+			case CSmModeEvent::EType::OnShoot : {
+				PassOn(Event);
+				PM::OnShoot(Event.Shooter.Id);
+			}
+			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
+				Discard(Event);
+				ManageRespawnPlayer(Event.Player.Id, False);
+			}
+			case CSmModeEvent::EType::OnArmorEmpty : {
+				Discard(Event);
+				ManageRespawnPlayer(Event.Victim.Id, False);
+			}
+		}
+	}
+
+	//Each player
+
 }
 
-Void InitInterface(){
+//Verify map
+Boolean VerifyMap(){
+	declare Boolean clean;
+	clean = True;
 
-	UIManager.UIAll.ScoreTableOnlyManialink = True;
-	UIManager.UIAll.AltMenuNoCustomScores = False;
+	if(TextLib::SubText(Map.MapType, 11, 19) == "ObstacleRebornArena"){
+		if(MapLandmarks_PlayerSpawn.count != 1){
+			clean = False;
+		}
+	}
+
+	declare goalExists = False;
 	
-	G_UIEventManager = UIManager.UILayerCreate();
-	G_UIEventManager.ManialinkPage = CreateUIEventManager();
-	UIManager.UIAll.UILayers.add(G_UIEventManager);
+	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){
+		foreach(FinishFind, MapLandmarks_Gauge){
+			if(FinishFind.Tag == "Goal"){
+				goalExists = True;
+			}
+		}
+		if(!goalExists){
+			clean = False;
+		}
+	} else {
+		goalExists = True;
+	}
 
-	G_ScoresTable = UIManager.UILayerCreate();
-	G_ScoresTable.Type = CUILayer::EUILayerType::ScoresTable;
-	UIManager.UIAll.UILayers.add(G_ScoresTable);
 	
-	G_OptionsMenu = UIManager.UILayerCreate();
-	//G_OptionsMenu.Type = CUILayer::EUILayerType::ScoresTable;
-	CreateUIOptionsMenu();
-	UIManager.UIAll.UILayers.add(G_OptionsMenu);
 
-	Chrono::Load();
+	declare Boolean[Integer] orders;
 
-	SM::SetupDefaultVisibility();
+	foreach(Test, MapLandmarks_Gauge){
+		if(orders.existskey(Test.Order)){
+			clean = False;
+		} else {
+			orders[Test.Order] = True;
+		}
+	}
+
+	return clean;
 }
 
+//Init obstacle
 Void InitObstacle(){
 	
 	// Set mode options
 	UseClans = False;
-
 	UsePvPCollisions = False;
 	UsePvPWeapons = False;
 	UseSameWallJump = True;
-	
-	
-	
-	G_CheckpointsCount = 0;
-	
-	declare CSmMapLandmark[] ChecksRaw;
-	
-	ChecksRaw.clear();
-	G_StartsTime = Integer[Ident];
-	G_BestChecksInt = Integer[Integer];
-	G_BestChecks = Integer[Integer];
-
-	foreach(Player, Players){
-		G_Finish[Player.Id] = 0;
-	}
+	MB_Sleep(1);
+	G_GamePhase = "verify";
 
 	//Colors
 	foreach(Base, MapBases){
@@ -1355,6 +381,25 @@ Void InitObstacle(){
 
 	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
 	
+	SM::SetupDefaultVisibility();
+
+	//Purge other manialinks
+	UIManager.UIAll.ScoreTableOnlyManialink = True;
+	UIManager.UIAll.AltMenuNoCustomScores = False;
+	UIManager.UIAll.OverlayHideMapInfo = True;
+	UIManager.UIAll.OverlayHideCountdown = True;
+
+	//Create Score Table
+	G_ScoresTable = UIManager.UILayerCreate();
+	G_ScoresTable.Type = CUILayer::EUILayerType::ScoresTable;
+	G_ScoresTable.ManialinkPage = Manialinks::CreateScoresTable();
+	UIManager.UIAll.UILayers.add(G_ScoresTable);
+
+	//Create UIEventManager
+	G_UIEventManager = UIManager.UILayerCreate();
+	G_UIEventManager.ManialinkPage = Manialinks::CreateUIEventManager();
+	UIManager.UIAll.UILayers.add(G_UIEventManager);
+
 	//Get Spawns
 	foreach(Spawn, MapLandmarks_PlayerSpawn){
 		if(TextLib::SubText(Spawn.Tag, 0, 5) == "Spawn"){
@@ -1362,6 +407,14 @@ Void InitObstacle(){
 		}
 	}
 	
+
+	//Manage Checkpoints and goal
+	declare CSmMapLandmark[] ChecksRaw;
+	
+	ChecksRaw.clear();
+	G_Checkpoints = CSmMapLandmark[Integer];
+	G_CheckpointsCount = 0;
+
 	//Get checkpoint count
 	foreach(Checkpoint, MapLandmarks_Gauge){	
 		if(TextLib::SubText(Checkpoint.Tag, 0, 10) == "Checkpoint"){
@@ -1392,7 +445,7 @@ Void InitObstacle(){
 	}
 	
 	//Add goal retro compatibility
-	if(Map.MapType != "ObstacleRebornArena"){
+	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){
 		foreach(FinishFind, MapLandmarks_Gauge){
 			if(FinishFind.Tag == "Goal"){
 				G_CheckpointsCount += 1;
@@ -1400,83 +453,20 @@ Void InitObstacle(){
 			}
 		}
 	}
-}
 
-Void UpdatePlayersObstacle(){
+	declare netwrite Integer Net_CheckpointsCount for Teams[0];
 	declare netwrite Integer Net_PlayersCount for Teams[0];
 
+	Net_CheckpointsCount = G_CheckpointsCount;
 	Net_PlayersCount = AllPlayers.count;
 
+	PM::Start();
+}
 
-	//Players
-	foreach(Player, AllPlayers){
-		if(!Player.RequestsSpectate){				
-			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){		
-				OSpawnPlayer(Player);
-				G_CheckpointNext[Player.Id] = 0;
-				G_Respawns[Player.Id] = 0;
-			}
-			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && G_CheckpointNext[Player.Id] == 0){
-				G_StartsTime[Player.Id] = Now;
-				G_CheckpointNext[Player.Id] = 1;
-				Chrono::Start(Player.Id, 0);
-			}
-			
-			if(G_Stamina[Player.Id]){
-				Player.Stamina = 3600;
-			}
-			
-			if(Player.CapturedLandmark != Null){
-				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
-					if(G_CheckpointNext[Player.Id] == G_CheckpointsCount){
-						FinishEvent(Player);
-					}
-				}
-				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
-					if(Player.CapturedLandmark.Order == G_Checkpoints[G_CheckpointNext[Player.Id]].Order){
-						if(G_CheckpointNext[Player.Id] == G_CheckpointsCount){
-							FinishEvent(Player);
-						} else {
-							ChangeAmmoAndStamina(Player, False);
-							CheckpointEvent(Player);
-						}
-					}
-				}
-			}
-				
-		}
-		if(Player.RequestsSpectate){
-			G_CheckpointNext[Player.Id] = 0;
-			Chrono::Stop(Player.Id);
-			Chrono::Reset(Player.Id);
-		}
-		
-		
-		//Custom key use
-		declare UI = UIManager.GetUI(Player);
-		
-		declare LastCustomKeyTime for Player = 0;
-		declare netread CustomKeyTime for UI = 0;
-		
-		if (CustomKeyTime > LastCustomKeyTime) {
-			RestartPlayer(Player, True);
-			LastCustomKeyTime = CustomKeyTime;
-		}
-
-		UpdatePlayerInterface(Player);
+Text GetRankings() {
+	declare PlayerList = "";
+	foreach (Player in AllPlayers) {
+		PlayerList ^= Player.Login ^ ":" ^ PM::GetBestTime(Player.Id);
 	}
-	
-	//Events
-	foreach(Event, PendingEvents){
-		switch(Event.Type){
-			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
-				Discard(Event);
-				RestartPlayer(Event.Player, False);
-			}
-			case CSmModeEvent::EType::OnArmorEmpty : {
-				Discard(Event);
-				RestartPlayer(Event.Victim, True);
-			}
-		}
-	}
+	return PlayerList;
 }
