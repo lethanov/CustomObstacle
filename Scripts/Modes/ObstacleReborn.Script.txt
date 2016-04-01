@@ -53,7 +53,8 @@ ModeStatusMessage = Rules;
 
 SpawnScreen::CreateMapInfo();
 //Users_DestroyAllFakes();
-Users_SetNbFakeUsers(20,0);
+Users_SetNbFakeUsers(5,0);
+ForceNavMapsComputation = True;
 InitObstacle();
 ***
 
@@ -96,6 +97,16 @@ PM::Init(Player.Id, G_Checkpoints);
 declare UI <=> UIManager.GetUI(Player);
 UI.OverlayHideGauges = True;
 ***
+
+***OnNewSpectator***
+***
+PM::Init(Spectator.Id, G_Checkpoints);
+
+declare UI <=> UIManager.GetUI(Spectator);
+UI.OverlayHideGauges = True;
+***
+
+
 
 ***EndMap***
 ***
@@ -252,9 +263,9 @@ Void FinishEvent(Ident _PlayerId){
 
 Void ObstacleMain(){
 	//Players
-	foreach(Player, Players){
+	foreach(Player, AllPlayers){
+		PM::Update(Player.Id);
 		if(!Player.RequestsSpectate){
-			PM::Update(Player.Id);
 			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
 				SpawnStartPlayer(Player.Id);
 			}

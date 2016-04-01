@@ -53,6 +53,25 @@ Text CreateScoresTable(){
 			(Page.GetFirstChild("16") as CMlLabel)
 		];
 
+		declare LabelsSpec = [
+			(Page.GetFirstChild("spec1") as CMlLabel),
+			(Page.GetFirstChild("spec2") as CMlLabel),
+			(Page.GetFirstChild("spec3") as CMlLabel),
+			(Page.GetFirstChild("spec4") as CMlLabel),
+			(Page.GetFirstChild("spec5") as CMlLabel),
+			(Page.GetFirstChild("spec6") as CMlLabel),
+			(Page.GetFirstChild("spec7") as CMlLabel),
+			(Page.GetFirstChild("spec8") as CMlLabel),
+			(Page.GetFirstChild("spec9") as CMlLabel),
+			(Page.GetFirstChild("spec10") as CMlLabel),
+			(Page.GetFirstChild("spec11") as CMlLabel),
+			(Page.GetFirstChild("spec12") as CMlLabel),
+			(Page.GetFirstChild("spec13") as CMlLabel),
+			(Page.GetFirstChild("spec14") as CMlLabel),
+			(Page.GetFirstChild("spec15") as CMlLabel),
+			(Page.GetFirstChild("spec16") as CMlLabel)
+		];
+
 		declare Labels = [
 			(Page.GetFirstChild("currentPage") as CMlLabel)
 			];
@@ -99,6 +118,7 @@ Text CreateScoresTable(){
 		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
 
 		declare netread Text[] Net_PlayersTimeData for Teams[0];
+		declare netwrite Text Net_PlayerSpectate for UI;
 
 		declare netwrite currentPage for UI = 0;
 		declare ShowOptionsMenu for UI = 0;
@@ -160,10 +180,20 @@ Text CreateScoresTable(){
 								currentPage += 1;
 							}
 						}
+
+						declare index = 0;
+
+						while(index < 16){
+							if(Event.ControlId == LabelsSpec[index].ControlId){
+								if(Net_PlayersTimeData.existskey(currentPage * 16 + index)){
+									Net_PlayerSpectate = TextLib::Split("|", Net_PlayersTimeData[currentPage * 16 + index])[0];
+								}
+							}
+							index += 1;
+						}
 					}
 				}
 			}
-
 		}
 		--></script>
 		<frame id="Spectators">
@@ -411,6 +441,11 @@ Text CreatePlayerInterface(){
 	}
 
 	main(){
+
+		declare Frames = [
+			(Page.GetFirstChild("GlobalTimer") as CMlFrame),
+			(Page.GetFirstChild("Corner") as CMlFrame)
+		];
 		declare PlayerInterfaces = [
 			(Page.GetFirstChild("Running") as CMlFrame),
 			(Page.GetFirstChild("RaceTerminated") as CMlFrame)
@@ -452,6 +487,10 @@ Text CreatePlayerInterface(){
 			(Page.GetFirstChild("BestTheorical") as CMlLabel)
 		];
 
+		declare SpectatorMode = [
+			(Page.GetFirstChild("SpectatorMode") as CMlFrame)
+		];
+
 		declare LastUpdate = 0;
 
 		declare netwrite RespawnAtStart for UI = False;
@@ -474,7 +513,12 @@ Text CreatePlayerInterface(){
 		declare netread Integer Net_Place for UI;
 		declare netread Integer Net_Theorical for UI;
 
+		declare netread Integer Net_BestTheorical for Teams[0];
+
 		declare netread Integer Net_CheckpointsCount for Teams[0];
+		declare netread Boolean Net_TrueSpectate for UI;
+
+		declare netwrite Text Net_PlayerSpectate for UI;
 
 		declare Integer LastBestTime;
 		declare Integer LastFinishs;
@@ -495,110 +539,138 @@ Text CreatePlayerInterface(){
 		LastFinishs = Net_Finishs;
 
 		while(True){
-			yield;			
-			if (LastUpdate + 25 > Now) continue;
-			LastUpdate = Now;
-			if(InputPlayer != Null){
-				if(Net_Running){
-					YPosRunningObj = YPosRunningOut;
-					YPosEndedObj = YPosEndedIn;
-					if(Net_HasAmmo){
-						GaugeAmmo[0].Visible = True;
-						if(Net_AmmoUnlimited){
-
-							GaugeAmmo[0].Ratio = 1.0;
-							GaugeAmmo[0].GradingRatio = 1.0;
-							GaugeAmmo[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
-							GaugeAmmo[0].Size = <69.0, 7.0>;
-						} else {
-							GaugeAmmo[0].Size = <69.0, 10.0>;
-							GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
-							if(InputPlayer.CurAmmoMax != 0){
-								GaugeAmmo[0].Ratio = (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0);
-								GaugeAmmo[0].GradingRatio = 1 / (InputPlayer.CurAmmoMax / 1600.0);
-								if(!Net_AmmoRegen){
-									GaugeAmmo[0].Color = <1.0, 0.0, 0.0>;
-								} else {
-									GaugeAmmo[0].Color = <1.0, (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0), (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)>;
-								}
-							}
-						}						
+			yield;
+			if (LastUpdate + 25 < Now) {
+				LastUpdate = Now;
+				if(InputPlayer != Null){
+					if(IsSpectatorMode){
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -10.0, 0.0>, Smooth*2);
 					} else {
-						GaugeAmmo[0].Visible = False;
-						GaugeAmmo[0].Ratio = 0.0;
-						GaugeAmmo[0].GradingRatio = 1.0;
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -10.0, 0.0>, Smooth*2);
 					}
-					
-					GaugeStamina[0].Ratio = InputPlayer.Stamina / 3600.0;
-					if(Net_StaminaUnlimited){
-						GaugeStamina[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
-						GaugeStamina[0].Ratio = 1.0;
-						GaugeStamina[0].Size = <69.0, 7.0>;
-					} else {
-						GaugeStamina[0].Size = <69.0, 10.0>;
-						if(!Net_StaminaRegen){
-							GaugeStamina[0].Color = <1.0, 0.0, 0.0>;
+					if(Net_Running){
+						YPosRunningObj = YPosRunningOut;
+						YPosEndedObj = YPosEndedIn;
+						if(Net_HasAmmo){
+							GaugeAmmo[0].Visible = True;
+							if(Net_AmmoUnlimited){
+
+								GaugeAmmo[0].Ratio = 1.0;
+								GaugeAmmo[0].GradingRatio = 1.0;
+								GaugeAmmo[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+								GaugeAmmo[0].Size = <69.0, 7.0>;
+							} else {
+								GaugeAmmo[0].Size = <69.0, 10.0>;
+								GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
+								if(InputPlayer.CurAmmoMax != 0){
+									GaugeAmmo[0].Ratio = (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0);
+									GaugeAmmo[0].GradingRatio = 1 / (InputPlayer.CurAmmoMax / 1600.0);
+									if(!Net_AmmoRegen){
+										GaugeAmmo[0].Color = <1.0, 0.0, 0.0>;
+									} else {
+										//GaugeAmmo[0].Color = <1.0, (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0), (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)>;
+										GaugeAmmo[0].Color = <InputPlayer.User.Color.X * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)), InputPlayer.User.Color.Y * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)), InputPlayer.User.Color.Z * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0))>;									
+									}
+								}
+							}						
 						} else {
-							GaugeStamina[0].Color = <1.0, InputPlayer.Stamina / 3600.0, InputPlayer.Stamina / 3600.0>;
+							GaugeAmmo[0].Visible = False;
+							GaugeAmmo[0].Ratio = 0.0;
+							GaugeAmmo[0].GradingRatio = 1.0;
+						}
+						
+						GaugeStamina[0].Ratio = InputPlayer.Stamina / 3600.0;
+						if(Net_StaminaUnlimited){
+							GaugeStamina[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+							GaugeStamina[0].Ratio = 1.0;
+							GaugeStamina[0].Size = <69.0, 7.0>;
+						} else {
+							GaugeStamina[0].Size = <69.0, 10.0>;
+							if(!Net_StaminaRegen){
+								GaugeStamina[0].Color = <1.0, 0.0, 0.0>;
+							} else {
+								GaugeStamina[0].Color = <InputPlayer.User.Color.X * (InputPlayer.Stamina / 3600.0), InputPlayer.User.Color.Y * (InputPlayer.Stamina / 3600.0), InputPlayer.User.Color.Z * (InputPlayer.Stamina / 3600.0)>;
+							}
+						}
+						PlayerTimer[0].Value = TextLib::TimeToText(ArenaNow - Net_PlayerStartTime, True);
+					} else {
+						YPosRunningObj = YPosRunningIn;
+						if(Net_Finishs != LastFinishs){
+							YPosEndedObj = YPosEndedOut;
+							LastFinishs = Net_Finishs;
+						}
+
+						GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
+						GaugeStamina[0].Color = <1.0, 1.0, 1.0>;
+						GaugeAmmo[0].Ratio = 0.0;
+						GaugeStamina[0].Ratio = 0.0;
+						PlayerTimer[0].Value = "--:--,--";
+
+						RaceTerminated[0].Value = "Shots fired : " ^ Net_ShotsFired;
+						RaceTerminated[1].Value = "Max speed : " ^ Net_MaxSpeed;
+						RaceTerminated[2].Value = "Stamina consumed : " ^ Net_StaminaUsed;
+						RaceTerminated[3].Value = Ordinal(Net_Place);
+					}	
+					
+					CPProgress[0].Value = Net_CheckpointProgress ^ "/" ^ Net_CheckpointsCount;
+					
+					PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningObj, 0.0>, Smooth);
+					PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedObj, -1.0>, Smooth);
+					Frames[0].RelativePosition = Lerp(Frames[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
+					Frames[1].RelativePosition = Lerp(Frames[1].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
+
+					Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theorical, True);
+					Theoricals[1].Value = "All Theo. : " ^ TextLib::TimeToText(Net_BestTheorical, True);
+
+					if(Net_BestTime == -1){
+						PlayerBestTime[0].Value = "Best : --:--,--";
+					} else {
+						PlayerBestTime[0].Value = "Best : " ^ TextLib::TimeToText(Net_BestTime, True);
+						if(LastBestTime != Net_BestTime){
+							LastBestTime = Net_BestTime;
+							PlayerBestTime[0].TextSize = 6;
+						}
+						if(PlayerBestTime[0].TextSize > 2){
+							PlayerBestTime[0].TextSize -= 1;
 						}
 					}
-					PlayerTimer[0].Value = TextLib::TimeToText(ArenaNow - Net_PlayerStartTime, True);
-				} else {
-					YPosRunningObj = YPosRunningIn;
-					if(Net_Finishs != LastFinishs){
-						YPosEndedObj = YPosEndedOut;
-						LastFinishs = Net_Finishs;
-					}
 
-					GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
-					GaugeStamina[0].Color = <1.0, 1.0, 1.0>;
-					GaugeAmmo[0].Ratio = 0.0;
-					GaugeStamina[0].Ratio = 0.0;
+					if(!RespawnAtStart){
+						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
+					} else {
+						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " $s$f00No Respawns";
+					}
+				} else {
+					GaugeAmmo[0].Visible = False;
+					GaugeStamina[0].Visible = False;
 					PlayerTimer[0].Value = "--:--,--";
+				}
+			}
 
-					RaceTerminated[0].Value = "Shots fired : " ^ Net_ShotsFired;
-					RaceTerminated[1].Value = "Max speed : " ^ Net_MaxSpeed;
-					RaceTerminated[2].Value = "Stamina consumed : " ^ Net_StaminaUsed;
-					RaceTerminated[3].Value = Ordinal(Net_Place);
-				}	
-				
-				CPProgress[0].Value = Net_CheckpointProgress ^ "/" ^ Net_CheckpointsCount;
-				
-				PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningObj, 0.0>, Smooth);
-				PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedObj, -1.0>, Smooth);
-
-				Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theorical, True);
-
-				if(Net_BestTime == -1){
-					PlayerBestTime[0].Value = "Best : --:--,--";
-				} else {
-					PlayerBestTime[0].Value = "Best : " ^ TextLib::TimeToText(Net_BestTime, True);
-					if(LastBestTime != Net_BestTime){
-						LastBestTime = Net_BestTime;
-						PlayerBestTime[0].TextSize = 6;
-					}
-					if(PlayerBestTime[0].TextSize > 2){
-						PlayerBestTime[0].TextSize -= 1;
+			foreach (Event in PendingEvents) {
+				switch(Event.Type){
+					case CMlEvent::Type::MouseClick:{
+						if(Event.ControlId == "QuitSpectatorMode"){
+							Net_PlayerSpectate = "";
+							if(Net_TrueSpectate){
+								IsSpectatorMode = False;
+							}
+						}
 					}
 				}
-
-				if(!RespawnAtStart){
-					PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
-				} else {
-					PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " $s$f00No Respawns";
-				}
-			} else {
-				GaugeAmmo[0].Visible = False;
-				GaugeStamina[0].Visible = False;
-				PlayerTimer[0].Value = "--:--,--";
 			}
 		}
 	}
 	--></script>
 	<frame id="PlayerInterface" posn="0 0 0">
-		<frame id="GlobalTimer">
+		<frame id="GlobalTimer" posn="-25 0 0">
 			<quad posn="-166 99 0" sizen="23 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
 			<label posn="-153 87 0" sizen="14 5" text="FREE TIME" textsize="1" style="TextRaceChrono" valign="center" halign="center"/>
+		</frame>
+		<frame id="SpectatorMode" posn="40 -10 0">
+			<quad posn="127 -42 0" sizen="36 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+			<quad id="QuitSpectatorMode" posn="131 -49 1" sizen="4 4" bgcolor="FFFA" style="Icons128x32_1" substyle="Close" scriptevents="1"/>
+			<label posn="137 -51 1" sizen="21 5" text="Spectator Mode" textsize="1" valign="center2"/>
 		</frame>
 		<frame id="RaceTerminated" posn="0 -16 0">
 			<quad posn="-51 -73 0" sizen="102 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
@@ -607,7 +679,7 @@ Text CreatePlayerInterface(){
 			<label id="StaminaUsed" posn="-47 -85 0" sizen="45 3" text="Stamina used : N/A" autonewline="1" textsize="1"/>
 			<label id="Place" style="TextValueSmallSm" posn="47 -86 0" sizen="33 5" text="This run : 00:00.00" textsize="2" halign="right" valign="center"/>
 		</frame>
-		<frame id="Corner">
+		<frame id="Corner" posn="50 0 0">
 			<quad posn="97 -72 -2" sizen="67 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
 			<label id="BestTheorical" posn="158 -79.5 0" sizen="32 5" text="All Theo. : 00:00.00" textsize="0.5" halign="right" valign="center"/>
 			<label id="Theorical" posn="125 -80.5 0" sizen="32 5" text="Theo. : 00:00.00" textsize="1" halign="right" valign="center"/>
