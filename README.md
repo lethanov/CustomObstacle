@@ -1,14 +1,5 @@
 # Obstacle Reborn
 
-Features :
-- Classic Obstacle Mode
-- Custom Scores Table
-- Custom Respawn key
-- Custom Restart key
-- Retro-compatibility with old maps
-- Best theorical time system
-
-
 TODO List
 
 Mode :
