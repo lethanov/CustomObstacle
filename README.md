@@ -18,6 +18,11 @@ Mode :
 - [LOW] For spec, we can see who spec you, and he can see what key is pressing. /!\ Heavy resources use /!\
 - [LOW] change color if stamina is illimited, Sound if regeneration, Sound for stamina blocked, and no thing if none.
 - [LOW] add a Sound if stamina = 0
+- correct color of the stam and rocket, and visual effect for no regen.
+- true timer of the map.
+- f3 to force next map.
+- display iniputs of the player in spected mode.
+- key for respawn.
 
 MapType :
 - [LOW] Add some credits
