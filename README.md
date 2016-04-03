@@ -4,7 +4,6 @@ TODO List
 
 Mode :
 - Display inputs for spectator
-- Allow key rebind for respawn.
 
 MapType :
 - [LOW] Add some credits
