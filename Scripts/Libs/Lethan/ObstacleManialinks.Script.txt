@@ -134,17 +134,17 @@ Text CreateScoresTable(){
 			];
 
 
-		declare LabelOptionsMenu = [(Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
-
 		declare netread Text[] Net_PlayersTimeData for Teams[0];
+		declare netread Integer Net_PlayersCount for Teams[0];
+		
+		declare netwrite Boolean Net_TrueSpectate for UI;
 		declare netwrite Text Net_PlayerSpectate for UI;
+		declare netwrite Text Net_PlayerSpectateForced for UI;
+
 
 		declare netwrite currentPage for UI = 0;
-		declare ShowOptionsMenu for UI = 0;
-		declare ShowStatsMenu for UI = False;
-		declare netwrite SpecTarget for UI = "";
-
-		declare netread Integer SpecCount for UI;
+		
+		declare netread Integer Net_SpecCount for UI;
 
 		declare LastUpdate = 0;
 
@@ -152,7 +152,7 @@ Text CreateScoresTable(){
 
 		while(True){
 			yield;
-			SpectatorsCount[0].Value = TextLib::ToText(SpecCount);
+			SpectatorsCount[0].Value = TextLib::ToText(Net_SpecCount);
 			if(Players.count > 16){
 				FramePagination[0].Visible = True;
 			} else {
@@ -177,7 +177,7 @@ Text CreateScoresTable(){
 					if(TextLib::ToInteger(data[1]) != -1){
 						LabelsTime[index].Value = TextLib::TimeToText(TextLib::ToInteger(data[1]), True);
 					} else {
-						LabelsTime[index].Value = "00:00.00";
+						LabelsTime[index].Value = "-";
 					}
 					LabelsCP[index].Value = data[2];
 
@@ -207,7 +207,8 @@ Text CreateScoresTable(){
 						while(index < 16){
 							if(Event.ControlId == LabelsSpec[index].ControlId){
 								if(Net_PlayersTimeData.existskey(currentPage * 16 + index)){
-									Net_PlayerSpectate = TextLib::Split("|", Net_PlayersTimeData[currentPage * 16 + index])[0];
+									declare data = TextLib::Split("|", Net_PlayersTimeData[currentPage * 16 + index])[0];
+									Net_PlayerSpectate = data;									
 								}
 							}
 							index += 1;
@@ -217,7 +218,7 @@ Text CreateScoresTable(){
 			}
 		}
 		--></script>
-		<frame id="Spectators">
+		<frame id="Spectators" posn="0 12 0">
 			<quad posn="148 -68 0" sizen="6 5.33" bgcolor="FFFA" style="Icons64x64_1" substyle="Camera"/>
 			<quad  posn="146 -62 -1" sizen="18 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
 			<label id="SpectatorsCount" posn="159 -71 0" sizen="7 5" text="N/A" textsize="1" valign="center2" halign="right"/>
@@ -485,12 +486,52 @@ Text CreatePlayerInterface(){
 		return <x, y, z>;
 	}
 
+	Ident GetPlayerId(Text _Login){
+		declare Ident valueReturned;
+		foreach (Player in Players) {
+			if (Player.Login == _Login) {
+				valueReturned = Player.Id;
+				break;
+			}
+		}
+		return valueReturned;
+	}
+
 	main(){
+		
+		declare InfiniteQuad = [
+			(Page.GetFirstChild("InfiniteTime") as CMlQuad)
+		];
+		declare RestartButtonEdit = [
+			(Page.GetFirstChild("RestartButtonEdit") as CMlLabel)
+		];
+
+		declare FrameHelp = [
+			(Page.GetFirstChild("Menu") as CMlFrame)
+		];
+
+		declare HelpIcon = [
+			(Page.GetFirstChild("ShowHelp") as CMlQuad)
+		];
+
+		declare LabelNextMap = [
+			(Page.GetFirstChild("NextMap") as CMlLabel)
+		];
+
+		declare TimeRemainingLabel = [
+			(Page.GetFirstChild("TimeRemaining") as CMlLabel)
+		];
 
 		declare Frames = [
 			(Page.GetFirstChild("GlobalTimer") as CMlFrame),
 			(Page.GetFirstChild("Corner") as CMlFrame)
 		];
+
+		declare Sliders = [
+			(Page.GetFirstChild("SliderLeft") as CMlQuad),
+			(Page.GetFirstChild("SliderRight") as CMlQuad)
+		];
+
 		declare PlayerInterfaces = [
 			(Page.GetFirstChild("Running") as CMlFrame),
 			(Page.GetFirstChild("RaceTerminated") as CMlFrame)
@@ -533,12 +574,16 @@ Text CreatePlayerInterface(){
 		];
 
 		declare SpectatorMode = [
-			(Page.GetFirstChild("SpectatorMode") as CMlFrame)
+			(Page.GetFirstChild("SpectatorMode") as CMlFrame),
+			(Page.GetFirstChild("SpectatorForced") as CMlFrame)
+		];
+
+		declare Regen = [
+			(Page.GetFirstChild("NoRegenAmmo") as CMlFrame),
+			(Page.GetFirstChild("NoRegenStamina") as CMlFrame)
 		];
 
 		declare LastUpdate = 0;
-
-		declare netwrite RespawnAtStart for UI = False;
 
 		declare netread Integer Net_PlayerStartTime for UI;
 		declare netread Boolean Net_Running for UI;
@@ -547,6 +592,7 @@ Text CreatePlayerInterface(){
 		declare netread Boolean Net_AmmoRegen for UI;
 		declare netread Boolean Net_StaminaUnlimited for UI;
 		declare netread Boolean Net_StaminaRegen for UI;
+		declare netread Boolean Net_RespawnAtStart for UI;
 		declare netread Integer Net_BestTime for UI;
 		declare netread Integer Net_Runs for UI;
 		declare netread Integer Net_Finishs for UI;
@@ -559,11 +605,22 @@ Text CreatePlayerInterface(){
 		declare netread Integer Net_Theorical for UI;
 
 		declare netread Integer Net_BestTheorical for Teams[0];
-
 		declare netread Integer Net_CheckpointsCount for Teams[0];
+		declare netread Boolean Net_NextMap for Teams[0];
+
 		declare netread Boolean Net_TrueSpectate for UI;
 
 		declare netwrite Text Net_PlayerSpectate for UI;
+		declare netwrite Text Net_PlayerSpectateManual for UI;
+
+		declare netread Integer Net_TimeRemaining for Teams[0];
+		declare netread Boolean Net_FreeTime for Teams[0];
+		declare netread Integer ForceNextCount for Teams[0];
+		declare netread Integer Net_PlayersCount for Teams[0];
+
+		declare Boolean ShowHelpMenu for UI;
+		declare netwrite CustomKeyEdit for UI = False;
+		declare CustomKey for UI = "Delete";
 
 		declare Integer LastBestTime;
 		declare Integer LastFinishs;
@@ -580,18 +637,72 @@ Text CreatePlayerInterface(){
 
 		declare Smooth = 5.0;
 
+		declare CSmPlayer LocalPlayer;
+
 		LastBestTime = Net_BestTime;
 		LastFinishs = Net_Finishs;
 
+		ShowHelpMenu = False;
+
 		while(True){
 			yield;
+			LabelNextMap[0].Value = "Press F3 for next map (" ^ ForceNextCount ^ "/" ^ Net_PlayersCount ^ ")";
+			if(!Net_FreeTime || ForceNextCount == Net_PlayersCount){
+				if(Net_TimeRemaining > 3600000){
+					if(Net_TimeRemaining - (Net_TimeRemaining / 3600000) < 600000){
+						TimeRemainingLabel[0].Value = TextLib::ToText(Net_TimeRemaining / 3600000) ^ ":0" ^ TextLib::TimeToText(Net_TimeRemaining, False);
+					} else {
+						TimeRemainingLabel[0].Value = TextLib::ToText(Net_TimeRemaining / 3600000) ^ ":" ^ TextLib::TimeToText(Net_TimeRemaining, False);
+					}
+				} else {
+					TimeRemainingLabel[0].Value = TextLib::TimeToText(Net_TimeRemaining, False);
+				}
+				if(Net_TimeRemaining > 60000){
+					TimeRemainingLabel[0].TextColor = <1.0, 1.0, 1.0>;
+				} else {
+					if(Net_TimeRemaining > 20000){
+						TimeRemainingLabel[0].TextColor = <1.0, 0.4, 0.0>;
+					} else {
+						TimeRemainingLabel[0].TextColor = <1.0, 0.0, 0.0>;
+					}
+				}
+				InfiniteQuad[0].Visible = False;
+			} else {
+				InfiniteQuad[0].Visible = True;
+				TimeRemainingLabel[0].Value = "";
+			}
+			//TimeRemainingLabel[0].Value = TextLib::TimeToText(600000, False);
+			if(Net_NextMap){
+				Sliders[0].RelativePosition = Lerp(Sliders[0].RelativePosition, <0.0, 0.0, -5.0>, Smooth*10);
+				Sliders[1].RelativePosition = Lerp(Sliders[1].RelativePosition, <0.0, 0.0, -5.0>, Smooth*10);
+				Frames[0].RelativePosition = Lerp(Frames[0].RelativePosition, <-20.0, 0.0, 0.0>, Smooth*2);			
+			} else {
+				Sliders[0].RelativePosition = Lerp(Sliders[0].RelativePosition, <-200.0, 0.0, -5.0>, Smooth*10);
+				Sliders[1].RelativePosition = Lerp(Sliders[1].RelativePosition, <200.0, 0.0, -5.0>, Smooth*10);
+				Frames[0].RelativePosition = Lerp(Frames[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
+			}
 			if (LastUpdate + 25 < Now) {
 				LastUpdate = Now;
+				
 				if(InputPlayer != Null){
+					LocalPlayer <=> InputPlayer;
+					if(GUIPlayer != Null){
+						if(GUIPlayer != LocalPlayer){
+							LocalPlayer <=> GUIPlayer;
+						}
+						Net_PlayerSpectateManual = GUIPlayer.Login;
+					}
+
 					if(IsSpectatorMode){
-						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -10.0, 0.0>, Smooth);
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -15.0, 0.0>, Smooth);
+						if(Net_TrueSpectate && Net_PlayerSpectate != ""){
+							SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <0.0, -20.0, 0.0>, Smooth);
+						} else {
+							SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <30.0, -20.0, 0.0>, Smooth);
+						}
 					} else {
-						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -10.0, 0.0>, Smooth);
+						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -15.0, 0.0>, Smooth);
+						SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <30.0, -20.0, 0.0>, Smooth);
 					}
 					if(Net_Running){
 						YPosRunningObj = YPosRunningOut;
@@ -599,7 +710,6 @@ Text CreatePlayerInterface(){
 						if(Net_HasAmmo){
 							GaugeAmmo[0].Visible = True;
 							if(Net_AmmoUnlimited){
-
 								GaugeAmmo[0].Ratio = 1.0;
 								GaugeAmmo[0].GradingRatio = 1.0;
 								GaugeAmmo[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
@@ -607,15 +717,15 @@ Text CreatePlayerInterface(){
 							} else {
 								GaugeAmmo[0].Size = <69.0, 10.0>;
 								GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
-								if(InputPlayer.CurAmmoMax != 0){
-									GaugeAmmo[0].Ratio = (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0);
-									GaugeAmmo[0].GradingRatio = 1 / (InputPlayer.CurAmmoMax / 1600.0);
-									if(!Net_AmmoRegen){
-										GaugeAmmo[0].Color = <1.0, 0.0, 0.0>;
+								if(LocalPlayer.CurAmmoMax != 0){
+									GaugeAmmo[0].Ratio = (LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0);
+									GaugeAmmo[0].GradingRatio = 1 / (LocalPlayer.CurAmmoMax / 1600.0);
+									if(Net_AmmoRegen){
+										Regen[0].RelativePosition = Lerp(Regen[0].RelativePosition, <0.0, -10.0 , -5.0>, Smooth);
 									} else {
-										//GaugeAmmo[0].Color = <1.0, (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0), (InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)>;
-										GaugeAmmo[0].Color = <InputPlayer.User.Color.X * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)), InputPlayer.User.Color.Y * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0)), InputPlayer.User.Color.Z * ((InputPlayer.CurAmmo * 1.0) / (InputPlayer.CurAmmoMax * 1.0))>;									
+										Regen[0].RelativePosition = Lerp(Regen[0].RelativePosition, <0.0, 0.0 , -5.0>, Smooth);
 									}
+									GaugeAmmo[0].Color = <LocalPlayer.User.Color.X * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0)), LocalPlayer.User.Color.Y * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0)), LocalPlayer.User.Color.Z * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0))>;
 								}
 							}						
 						} else {
@@ -624,17 +734,18 @@ Text CreatePlayerInterface(){
 							GaugeAmmo[0].GradingRatio = 1.0;
 						}
 						
-						GaugeStamina[0].Ratio = InputPlayer.Stamina / 3600.0;
+						GaugeStamina[0].Ratio = LocalPlayer.Stamina / 3600.0;
 						if(Net_StaminaUnlimited){
 							GaugeStamina[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
 							GaugeStamina[0].Ratio = 1.0;
 							GaugeStamina[0].Size = <69.0, 7.0>;
 						} else {
 							GaugeStamina[0].Size = <69.0, 10.0>;
-							if(!Net_StaminaRegen){
-								GaugeStamina[0].Color = <1.0, 0.0, 0.0>;
+							GaugeStamina[0].Color = <LocalPlayer.User.Color.X *(LocalPlayer.Stamina / 3600.0), LocalPlayer.User.Color.Y * (LocalPlayer.Stamina / 3600.0), LocalPlayer.User.Color.Z * (LocalPlayer.Stamina / 3600.0)>;									
+							if(Net_StaminaRegen){
+								Regen[1].RelativePosition = Lerp(Regen[1].RelativePosition, <0.0, -10.0 , -5.0>, Smooth);
 							} else {
-								GaugeStamina[0].Color = <InputPlayer.User.Color.X * (InputPlayer.Stamina / 3600.0), InputPlayer.User.Color.Y * (InputPlayer.Stamina / 3600.0), InputPlayer.User.Color.Z * (InputPlayer.Stamina / 3600.0)>;
+								Regen[1].RelativePosition = Lerp(Regen[1].RelativePosition, <0.0, 0.0 , -5.0>, Smooth);
 							}
 						}
 						PlayerTimer[0].Value = TextLib::TimeToText(ArenaNow - Net_PlayerStartTime, True);
@@ -659,16 +770,27 @@ Text CreatePlayerInterface(){
 					
 					CPProgress[0].Value = Net_CheckpointProgress ^ "/" ^ Net_CheckpointsCount;
 					
-					PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningObj, 0.0>, Smooth);
-					PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedObj, -1.0>, Smooth);
-					Frames[0].RelativePosition = Lerp(Frames[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
-					Frames[1].RelativePosition = Lerp(Frames[1].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
+					if(Net_NextMap || (GUIPlayer == Null && IsSpectatorMode)){
+						PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningIn, 0.0>, Smooth/2);
+						PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedIn, -1.0>, Smooth/2);
+						
+						Frames[1].RelativePosition = Lerp(Frames[1].RelativePosition, <80.0, 0.0, 0.0>, Smooth*2);
+					} else {
+						PlayerInterfaces[0].RelativePosition = Lerp(PlayerInterfaces[0].RelativePosition, <0.0, YPosRunningObj, 0.0>, Smooth);
+						PlayerInterfaces[1].RelativePosition = Lerp(PlayerInterfaces[1].RelativePosition, <0.0, YPosEndedObj, -1.0>, Smooth);
+						
+						Frames[1].RelativePosition = Lerp(Frames[1].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
+					}
 
 					Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theorical, True);
+					Theoricals[0].TextColor = LocalPlayer.User.Color;
 					Theoricals[1].Value = "All Theo. : " ^ TextLib::TimeToText(Net_BestTheorical, True);
+					Theoricals[1].TextColor = LocalPlayer.User.Color;
+
+					CPProgress[0].TextColor = LocalPlayer.User.Color;
 
 					if(Net_BestTime == -1){
-						PlayerBestTime[0].Value = "Best : --:--,--";
+						PlayerBestTime[0].Value = "Best : -";
 					} else {
 						PlayerBestTime[0].Value = "Best : " ^ TextLib::TimeToText(Net_BestTime, True);
 						if(LastBestTime != Net_BestTime){
@@ -680,10 +802,23 @@ Text CreatePlayerInterface(){
 						}
 					}
 
-					if(!RespawnAtStart){
+					PlayerRunsAndRespawns[0].TextColor = LocalPlayer.User.Color;
+					if(!Net_RespawnAtStart){
 						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
 					} else {
 						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " $s$f00No Respawns";
+					}
+					if(CustomKeyEdit){
+						RestartButtonEdit[0].Value = "Press new key";
+					} else {
+						RestartButtonEdit[0].Value = "Restart : " ^ CustomKey;
+					}
+					if(ShowHelpMenu){
+						HelpIcon[0].RelativePosition = Lerp(HelpIcon[0].RelativePosition, <-180.0, 83.0, 0.0>, Smooth);
+						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth);
+					} else {
+						HelpIcon[0].RelativePosition = Lerp(HelpIcon[0].RelativePosition, <-158.0, 83.0, 0.0>, Smooth);
+						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <-100.0, 0.0, 0.0>, Smooth);
 					}
 				} else {
 					GaugeAmmo[0].Visible = False;
@@ -701,6 +836,26 @@ Text CreatePlayerInterface(){
 								IsSpectatorMode = False;
 							}
 						}
+						if(Event.ControlId == "QuitSpectatorForcedMode"){
+							if(Net_TrueSpectate){
+								Net_PlayerSpectate = "";
+							}
+						}
+						if(Event.ControlId == "ShowHelp"){
+							ShowHelpMenu = True;
+						}
+						if(Event.ControlId == "CloseHelp"){
+							ShowHelpMenu = False;
+						}
+						if(Event.ControlId == "RestartButtonEdit"){
+							CustomKeyEdit = True;
+						}
+					}
+					case CMlEvent::Type::KeyPress: {
+						if(CustomKeyEdit){
+							CustomKeyEdit = False;
+							CustomKey = Event.KeyName;
+						}
 					}
 				}
 			}
@@ -708,14 +863,45 @@ Text CreatePlayerInterface(){
 	}
 	--></script>
 	<frame id="PlayerInterface" posn="0 0 0">
-		<frame id="GlobalTimer" posn="-25 0 0">
-			<quad posn="-166 99 0" sizen="23 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
-			<label posn="-153 87 0" sizen="14 5" text="FREE TIME" textsize="1" style="TextRaceChrono" valign="center" halign="center"/>
+	<quad id="SliderLeft" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="right" hidden="0"/>
+	<quad id="SliderRight" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="left" hidden="0"/>
+	<quad id="ShowHelp" posn="-158 83 0" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Help" scriptevents="1"/>
+		<frame id="Menu" posn="-100 0 0">
+		<quad posn="-164 70 0" sizen="94 61" bgcolor="FFFA" style="Bgs1" substyle="BgHealthBar"/>
+		<label posn="-72 68 0" sizen="55 5" text="Help / Options" halign="right"/>
+		<label id="CloseHelp" posn="-161 22 1" sizen="13 5" text="Close" style="CardMain_Quit" scriptevents="1"/>
+		<label posn="-157 58 0" sizen="81 4" text="Press F4 to (de)activate respawn at last CP." textsize="2"/>
+		<label posn="-157 54 0" sizen="81 4" text="Press F3 to vote fornext map." textsize="2"/>
+		<label posn="-157 30 0" sizen="49 5" text="Bind key for restart" textsize="2"/>
+		<label id="RestartButtonEdit" posn="-108 32 1" sizen="20 5" text="Restart : DELETE" style="CardButtonMedium" scriptevents="1"/>
 		</frame>
-		<frame id="SpectatorMode" posn="40 -10 0">
+		<frame id="GlobalTimer" posn="-20 0 0">
+			<quad posn="-166 99 0" sizen="23 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
+			<label id="TimeRemaining" posn="-153 87 0" sizen="14 5" text="FREE TIME" textsize="2" style="TextRaceChrono" valign="center" halign="center"/>
+			<quad id="InfiniteTime" posn="-157 89 1" sizen="8 4" bgcolor="FFFA" image="https://dl.dropboxusercontent.com/u/42719494/Maniaplanet/infinite.png"/>
+		</frame>
+		<frame id="NextMapCall">
+			<quad posn="-126 94 0" sizen="53 8" bgcolor="FFFA" style="Bgs1" substyle="BgHealthBar"/>
+			<label id="NextMap" posn="-100 88.5 0" sizen="42 3" text="F3 for next map (0/0)" textsize="1" halign="center" valign="center"/>
+		</frame>
+		<frame id="SpectatorMode" posn="40 -15 0">
 			<quad posn="127 -42 0" sizen="36 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
 			<quad id="QuitSpectatorMode" posn="131 -49 1" sizen="4 4" bgcolor="FFFA" style="Icons128x32_1" substyle="Close" scriptevents="1"/>
 			<label posn="137 -51 1" sizen="21 5" text="Spectator Mode" textsize="1" valign="center2"/>
+		</frame>
+		<frame id="SpectatorForced" posn="30 -20 -1">
+			<quad posn="141 -45 0" sizen="21 13" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
+			<quad id="QuitSpectatorForcedMode" posn="143 -50 1" sizen="4 4" bgcolor="FFFA" style="Icons128x32_1" substyle="Close" scriptevents="1"/>
+			<label posn="157 -52 1" sizen="11 5" text="$f00Forced" textsize="1" valign="center2" halign="right"/>
+		</frame>
+		<frame id="SpectatorInput" hidden="1">
+		<quad posn="-30 -68 -2" sizen="60 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
+		<quad id="Left" posn="-27 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Left"/>
+		<quad id="Right" posn="-15 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Right"/>
+		<quad id="Down" posn="-21 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Down"/>
+		<quad id="Up" posn="-21 -71 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Up"/>
+		<label id="Shoot" posn="10 -72 0" sizen="20 5" text="$sShoot" halign="center"/>
+		<label id="Jump" posn="10 -78 0" sizen="20 5" text="$sJump" halign="center"/>
 		</frame>
 		<frame id="RaceTerminated" posn="0 -16 0">
 			<quad posn="-51 -73 0" sizen="102 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
@@ -724,7 +910,7 @@ Text CreatePlayerInterface(){
 			<label id="StaminaUsed" posn="-47 -85 0" sizen="45 3" text="Stamina used : N/A" autonewline="1" textsize="1"/>
 			<label id="Place" style="TextValueSmallSm" posn="47 -86 0" sizen="33 5" text="This run : 00:00.00" textsize="2" halign="right" valign="center"/>
 		</frame>
-		<frame id="Corner" posn="50 0 0">
+		<frame id="Corner" posn="80 0 0">
 			<quad posn="97 -72 -2" sizen="67 16" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
 			<label id="BestTheorical" posn="158 -79.5 0" sizen="32 5" text="All Theo. : 00:00.00" textsize="0.5" halign="right" valign="center"/>
 			<label id="Theorical" posn="125 -80.5 0" sizen="32 5" text="Theo. : 00:00.00" textsize="1" halign="right" valign="center"/>
@@ -734,10 +920,18 @@ Text CreatePlayerInterface(){
 			<label id="PlayerRunsAndRespawns" posn="85 -86 0" sizen="31 3" text="Runs : 0 - RS : 0" textsize="1"/>
 		</frame>
 		<frame id="Running" posn="0 -2 0">
+			<frame id="NoRegenAmmo" posn="0 0 0">
+				<quad posn="-81 -76 0" sizen="28 8" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
+				<label posn="-79 -79 0" sizen="25 3" text="$f00No regeneration !" textsize="1"/>
+			</frame>
+			<frame id="NoRegenStamina" posn="0 0 0">
+				<quad posn="57 -76 0" sizen="28 8" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
+				<label posn="61 -79 0" sizen="25 3" text="$f00No regeneration !" textsize="1"/>
+			</frame>
 			<quad posn="-89 -76 0" sizen="78 18" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
 			<quad posn="5 -76 -1" sizen="84 18" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg"/>
-			<quad posn="68 -74 0" sizen="11 12" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" hidden="1"/>
-			<label id="CPProgress" posn="77 -80 0" sizen="13 5" text="?/?" textsize="1" valign="center" halign="right" hidden="1"/>
+			<quad posn="86 -74 -3" sizen="11 12" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" hidden="0"/>
+			<label id="CPProgress" posn="95 -80 -2" sizen="13 5" text="?/?" textsize="1" valign="center" halign="right" hidden="0"/>
 			<gauge id="PlayerAmmo" posn="-14 -85 0" sizen="69 10" valign="center" halign="right" ratio="1" grading="0.25" drawbg="0"/>
 			<gauge id="PlayerStamina" posn="14 -85 -1" sizen="69 10" valign="center" halign="left" ratio="1" color="ff66ffFF" drawbg="0"/>
 			<quad posn="0 -84.5 1" sizen="30 8" bgcolor="FFFA" halign="center" valign="center" style="EnergyBar" substyle="BgText"/>
@@ -751,31 +945,30 @@ Text CreateUIEventManager(){
 	return """
 		<script><!--
 
-		declare ShowOptionsMenu for UI = 0;
 		declare netwrite RespawnKeyToggle for UI = "F4";
 		declare netwrite RespawnAtStart for UI = False;
 
 		declare netwrite CustomKeyTime for UI = 0;
 		declare CustomKey for UI = "Delete";
 
-		
+		declare netwrite Boolean ForceNext for UI;
+
+		ForceNext = False;
 
 		while (True) {
 			yield;
 			// Process events
 			foreach (Event in PendingEvents) {
 				switch (Event.Type) {
-					case CMlEvent::Type::MouseClick: {
-						if(Event.ControlId == "closeOptionsMenu"){
-							ShowOptionsMenu = 0;
-						}
-					}
 					case CMlEvent::Type::KeyPress: {
 						if(Event.KeyName == RespawnKeyToggle){
 							RespawnAtStart = !RespawnAtStart;
 						}
 						if(Event.KeyName == CustomKey){
 							CustomKeyTime = ArenaNow;
+						}
+						if(Event.KeyName == "F3" && !IsSpectatorMode){
+							ForceNext = True;
 						}
 					}
 				}
@@ -784,170 +977,3 @@ Text CreateUIEventManager(){
 		--></script>
 	""";
 }
-/*
-{{{G_Checkpoints[cpNext].Position.X}}} {{{G_Checkpoints[cpNext].Position.Y + 2}}} {{{G_Checkpoints[cpNext].Position.Z}}}
-Text CreateUIOptionsMenu(){
-	return """
-	<script><!--
-	declare ShowOptionsMenu for UI = 0;
-
-	declare Frame = [(Page.GetFirstChild("OptionsMenu") as CMlFrame), (Page.GetFirstChild("Help") as CMlFrame)];
-
-	declare Labels = [
-		(Page.GetFirstChild("showHud") as CMlLabel),
-		(Page.GetFirstChild("extraHud") as CMlLabel),
-		(Page.GetFirstChild("respawnKeyDefault") as CMlLabel),
-		(Page.GetFirstChild("respawnModeKey") as CMlLabel),
-		(Page.GetFirstChild("customKeyDesc") as CMlLabel),
-		(Page.GetFirstChild("customKey") as CMlLabel)		
-	];
-
-	declare Spec = [
-		(Page.GetFirstChild("Spec") as CMlLabel)
-	];
-
-	declare Info = [
-		(Page.GetFirstChild("info") as CMlLabel)
-	];
-
-	declare Buttons = [(Page.GetFirstChild("showStatsMenu") as CMlLabel), (Page.GetFirstChild("showOptionsMenu") as CMlLabel)];
-
-	declare netwrite SpecTarget for UI = "";
-	declare netread ShowSpec for UI = False;
-	declare netwrite SwitchFullHud for UI = False;
-	declare netwrite SwitchExtraHud for UI = False;
-	declare SwitchHelp for UI = True;
-
-	declare RespawnKeyToggleEdit for UI = False;
-	declare CustomKeyEdit for UI = False;
-
-	declare netwrite RespawnKeyToggle for UI = "F4";
-	declare CustomKey for UI = "Delete";
-
-	declare ShowStatsMenu for UI = False;
-
-	while (True) {
-		Info[0].Value = "Press your user respawn key to Restart, Press " ^ RespawnKeyToggle ^ " to enable/disable respawns at CPs, Press " ^ CustomKey ^ " to respawn at Last CP.";
-		if(ShowSpec){
-			Spec[0].Visible = True;
-		} else {
-			Spec[0].Visible = False;
-		}
-
-		if(ShowOptionsMenu == 1){
-			Frame[0].Visible = True;
-		} else {
-			Frame[0].Visible = False;
-		}
-
-		if(ShowStatsMenu || ShowOptionsMenu == 1){
-			Buttons[0].Visible = False;
-			Buttons[1].Visible = False;
-		} else {
-			Buttons[0].Visible = True;
-			Buttons[1].Visible = True;
-		}
-		if(SwitchHelp){
-			Frame[1].Visible = True;
-		} else {
-			Frame[1].Visible = False;
-		}
-
-		if(SwitchFullHud){
-			Labels[0].Value = "Yes";
-		} else {
-			Labels[0].Value = "No";
-		}
-		if(SwitchExtraHud){
-			Labels[1].Value = "Yes";
-		} else {
-			Labels[1].Value = "No";
-		}
-		if(!RespawnKeyToggleEdit){
-			Labels[3].Value = RespawnKeyToggle;
-		} else {
-			Labels[3].Value = "Press new key";
-		}
-		if(!CustomKeyEdit){
-			Labels[5].Value = CustomKey;
-		} else {
-			Labels[5].Value = "Press new key";
-		}
-		yield;
-		// Process events
-		foreach (Event in PendingEvents) {
-			switch (Event.Type) {
-				case CMlEvent::Type::MouseClick: {
-					if(Event.ControlId == "closeOptionsMenu"){
-						ShowOptionsMenu = 0;
-					}
-					if(Event.ControlId == "showOptionsMenu"){
-						if(ShowOptionsMenu == 0){
-							ShowOptionsMenu = 1;
-						} else {
-							ShowOptionsMenu = 0;
-						}
-					}
-					if(Event.ControlId == "showStatsMenu"){
-						ShowStatsMenu = !ShowStatsMenu;
-					}
-					if(Event.ControlId == "showHud"){
-						SwitchFullHud = !SwitchFullHud;
-					}
-					if(Event.ControlId == "extraHud"){
-						SwitchExtraHud = !SwitchExtraHud;
-					}
-					
-					if(Event.ControlId == "respawnModeKey"){
-						RespawnKeyToggleEdit = True;
-					}
-					if(Event.ControlId == "customKey"){
-						CustomKeyEdit = True;
-					}
-					if(Event.ControlId == "Spec"){
-						SpecTarget = "";
-					}
-				}
-				case CMlEvent::Type::KeyPress: {
-					if(RespawnKeyToggleEdit){
-						RespawnKeyToggleEdit = False;
-						RespawnKeyToggle = Event.KeyName;
-					}
-					if(CustomKeyEdit){
-						CustomKeyEdit = False;
-						CustomKey = Event.KeyName;
-					}
-					if(Event.KeyName == "H"){
-						SwitchHelp = !SwitchHelp;
-					}
-				}
-			}
-		}
-	}
-	--></script>
-	<label posn="-158 88 0" halign="left" style="TextButtonNav" text="(Work in Progress) Obstacle Reborn Revision : {{{C_Revision}}}" />
-	<quad id="Spec" posn="-57 -54.5" sizen="12 12" style="UIConstruction_Buttons" substyle="Camera" scriptevents="1" halign="center" valign="center2"/>
-	<frame id="Help">
-		<label id="info" posn="-158 84 0" sizen="127 6" text="" textsize="1" autonewline="1"/><label posn="-158 61 0" sizen="42 7" text="Hold Alt to activate mouse.  Press H to switch on/off this stuff." textsize="1" autonewline="1" halign="left"/>
-		<label posn="-158 81 0" sizen="79 5" text="" textsize="1"/>
-		<label id="showOptionsMenu" posn="-158 74 0" sizen="79 4" autonewline="1" text="Options" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
-		<label id="showStatsMenu" posn="-158 68 0" sizen="79 4" autonewline="1" text="Stats" textsize="2" scriptevents="1" style="CardButtonSmallXS"/>
-	</frame>
-	<frame id="OptionsMenu">
-		<quad posn="0 0 0" sizen="150 98" bgcolor="000000C6" valign="center" halign="center" style="Bgs1" substyle="BgHealthBar" />
-		<label posn="72 -42 1" sizen="25 6" text="Options" style="TextTitle3" textsize="3" halign="right"/>
-		<label posn="-70 41 1" sizen="70 6" text="HUD Options" style="TextTitle3" textsize="2"/>
-		<label posn="-66 32 1" sizen="45 4" text="$aafShow what values means." textsize="2" autonewline="1"/>
-		<label posn="14 34 1" sizen="4 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="showHud"/>
-		<label posn="-66 22 1" sizen="69 4" text="$aafShow Previous CP Info and Next CP Info." textsize="2" autonewline="1"/>
-		<label posn="14 24 1" sizen="20 5" text="Yes" style="CardButtonMediumXL" scriptevents="1" id="extraHud"/>
-		<label posn="-70 4 1" sizen="70 4" text="Rebind keys" style="TextTitle3" textsize="2"/>
-		<label posn="14 -11 1" sizen="20 5" text="F4" style="CardButtonMediumXL" scriptevents="1" id="respawnModeKey"/>
-		<label posn="-64 -14 1" sizen="53 4" text="$aafForce respawn at the beginning." textsize="2" autonewline="1"/>
-		<label posn="14 -20 1" sizen="20 5" text="Delete" style="CardButtonMediumXL" scriptevents="1" id="customKey"/>
-		<label id="customKeyDesc" posn="-64 -23 1" sizen="42 4" text="$aafKey for normal respawn." textsize="2" autonewline="1"/>
-		<label posn="-76 -37 2" sizen="2 5" text="Close" style="CardMain_Quit" scriptevents="1" id="closeOptionsMenu"/>
-	</frame>
-	""";
-}
-*/

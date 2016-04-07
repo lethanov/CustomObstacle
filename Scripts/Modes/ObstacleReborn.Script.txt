@@ -23,7 +23,12 @@
 #Include "Libs/Lethan/ObstacleManialinks.Script.txt" as Manialinks
 #Include "Libs/Lethan/ObstaclePlayerManager.Script.txt" as PM
 
+#Setting S_TimeLimit 45 as _("Time limit in minutes")
+
+declare Integer G_TimeLimit;
 declare Text G_GamePhase;
+declare Boolean G_FreeTime;
+declare Boolean G_ForcedNext;
 
 declare CSmMapLandmark G_MainSpawn;
 declare CSmMapLandmark[Integer] G_Checkpoints;
@@ -53,7 +58,7 @@ ModeStatusMessage = Rules;
 
 SpawnScreen::CreateMapInfo();
 //Users_DestroyAllFakes();
-//Users_SetNbFakeUsers(5,0);
+Users_SetNbFakeUsers(5,0);
 InitObstacle();
 ***
 
@@ -79,8 +84,18 @@ if(G_GamePhase == "init"){
 	sleep(2000);
 	
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+
+	G_TimeLimit = S_TimeLimit;
+
 	StartTime = Now;
-	EndTime = -1;
+
+	if (S_TimeLimit > 0){
+		EndTime = StartTime + (S_TimeLimit * 60000) + 2500;
+		G_FreeTime = False;
+	} else{
+		G_FreeTime = True;
+		EndTime = -1;
+	}
 	
 	G_GamePhase = "play";
 }
@@ -92,7 +107,7 @@ if(G_GamePhase == "play"){
 ***OnNewPlayer***
 ***
 PM::Init(Player.Id, G_Checkpoints);
-
+PM::UpdateScoresTable();
 declare UI <=> UIManager.GetUI(Player);
 UI.OverlayHideGauges = True;
 ***
@@ -100,7 +115,7 @@ UI.OverlayHideGauges = True;
 ***OnNewSpectator***
 ***
 PM::Init(Spectator.Id, G_Checkpoints);
-
+PM::UpdateScoresTable();
 declare UI <=> UIManager.GetUI(Spectator);
 UI.OverlayHideGauges = True;
 ***
@@ -109,6 +124,13 @@ UI.OverlayHideGauges = True;
 
 ***EndMap***
 ***
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
+sleep(3000);
+Message::SendBigMessage("", 5000, 3, CUIConfig::EUISound::EndRound, 0);
+declare netwrite Boolean Net_NextMap for Teams[0];
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+Net_NextMap = True;
+sleep(8000);
 UIManager.UILayerDestroyAll();
 XmlRpc.SendCallback("endMap1", GetRankings());
 ***
@@ -157,6 +179,17 @@ Void SpawnStartPlayer(Ident _PlayerId){
 	}
 }
 
+Void JumpPlayer(Ident _PlayerId){
+	if(Players.existskey(_PlayerId)){
+		declare _Player = Players[_PlayerId];
+		foreach(Spawn, MapLandmarks_PlayerSpawn){
+			if(Spawn.Tag == "CPSpawn" && Spawn.Order == PM::GetCheckpointProgress(_PlayerId)){
+				SpawnPlayer(_Player, 0, 100, Spawn.PlayerSpawn, Now);
+			}
+		}
+	}
+}
+
 Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 	if(Players.existskey(_PlayerId)){
 		declare _Player = Players[_PlayerId];
@@ -169,7 +202,11 @@ Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 		} else {
 			if(!RespawnAtStart){
 				if(PM::GetCheckpointObjective(_Player.Id) > 1){
-					PM::RespawnPlayerAtLastCP(_Player.Id);
+					if(PM::IsCheckpointOldType3(_PlayerId)){
+						JumpPlayer(_PlayerId);
+					} else {
+						PM::RespawnPlayerAtLastCP(_Player.Id);
+					}
 				} else {
 					SpawnStartPlayer(_Player.Id);
 				}
@@ -179,6 +216,8 @@ Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 		}
 	}
 }
+
+
 
 Void CheckpointEvent(Ident _PlayerId){
 	if(Players.existskey(_PlayerId)){
@@ -214,6 +253,12 @@ Void CheckpointEvent(Ident _PlayerId){
 		
 
 		Message::SendStatusMessage(_Player, message, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);
+
+		//Old maps
+		if(PM::IsCheckpointOldType3(_PlayerId)){
+			JumpPlayer(_PlayerId);
+		}
+		PM::UpdateScoresTable();
 	}
 }
 
@@ -232,7 +277,7 @@ Void FinishEvent(Ident _PlayerId){
 		if(PM::IsNotHisFirstRun(_PlayerId)){
 			if(PM::GetBestTimeDiff(_Player.Id) < 0){
 				diffPersonnal = " $00f" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
-				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::VictoryPoint, 0);
+				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Finish, 0);
 			} else {
 				diffPersonnal = " $f00+" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
 			}
@@ -257,13 +302,21 @@ Void FinishEvent(Ident _PlayerId){
 		PM::RaceFinish(_PlayerId);
 		
 		UnspawnPlayer(_Player);
+
+		Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+		PM::UpdateScoresTable();
 	}
 }
 
 Void ObstacleMain(){
+
+	declare netwrite Integer ForceNextCount for Teams[0];
+
+	ForceNextCount = 0;
 	//Players
 	foreach(Player, AllPlayers){
-		PM::Update(Player.Id);
+
+		PM::UpdatePlayerRawData(Player.Id);
 		if(!Player.RequestsSpectate){
 			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
 				SpawnStartPlayer(Player.Id);
@@ -297,14 +350,23 @@ Void ObstacleMain(){
 			declare UI <=> UIManager.GetUI(Player);
 			declare LastCustomKeyTime for Player = 0;
 			declare netread CustomKeyTime for UI = 0;
+			declare netread Boolean CustomKeyEdit for UI;
 			
 			if (CustomKeyTime > LastCustomKeyTime) {
-				ManageRespawnPlayer(Player.Id, True);
+				if(!CustomKeyEdit){
+					ManageRespawnPlayer(Player.Id, True);
+				}
 				LastCustomKeyTime = CustomKeyTime;
 			}
 
 			if(StaminaUnlimited){
 				Player.Stamina = 3600;
+			}
+
+			//Force next
+			declare netread Boolean ForceNext for UI;
+			if(ForceNext){
+				ForceNextCount += 1;
 			}
 		}
 	}
@@ -318,7 +380,11 @@ Void ObstacleMain(){
 			}
 			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
 				Discard(Event);
-				ManageRespawnPlayer(Event.Player.Id, False);
+				declare UI <=> UIManager.GetUI(Event.Player);
+				declare netread Boolean CustomKeyEdit for UI;
+				if(!CustomKeyEdit){
+					ManageRespawnPlayer(Event.Player.Id, False);
+				}
 			}
 			case CSmModeEvent::EType::OnArmorEmpty : {
 				Discard(Event);
@@ -327,8 +393,47 @@ Void ObstacleMain(){
 		}
 	}
 
-	//Each player
+	//Timer
+	declare netwrite Integer Net_TimeRemaining for Teams[0];
+	declare netwrite Boolean Net_FreeTime for Teams[0];
+	declare netwrite Integer Net_PlayersCount for Teams[0];
 
+	Net_PlayersCount = Players.count;
+	Net_TimeRemaining = EndTime - Now;
+
+	if(!G_ForcedNext){
+		if(S_TimeLimit != G_TimeLimit){
+			if(S_TimeLimit <= 0){
+				G_TimeLimit = -1;
+				Net_TimeRemaining = -1;
+				G_FreeTime = True;
+			} else {
+				if(S_TimeLimit != G_TimeLimit){
+					G_TimeLimit = S_TimeLimit;
+					StartTime = Now - 1000;
+					EndTime = StartTime + (G_TimeLimit * 60000) + 1000;
+					G_FreeTime = False;
+				}
+			}
+		}
+	}
+	if(Players.count > 0 && ForceNextCount == Players.count && !G_ForcedNext){
+		StartTime = Now - 1000;
+		EndTime = StartTime + 21000;
+		G_ForcedNext = True;
+		G_FreeTime = False;
+		foreach(Player, Players){
+			declare UI <=> UIManager.GetUI(Player);
+			UI.SendNotice("Voting has forced an End of the current Map", CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::FirstHit, 0);
+		}
+	}
+
+	Net_TimeRemaining = EndTime - Now;
+	Net_FreeTime = G_FreeTime;
+
+	if(Net_TimeRemaining < 0 && !G_FreeTime){
+		MatchEndRequested = True;
+	}
 }
 
 //Verify map
@@ -465,11 +570,13 @@ Void InitObstacle(){
 	}
 
 	declare netwrite Integer Net_CheckpointsCount for Teams[0];
-	declare netwrite Integer Net_PlayersCount for Teams[0];
+
+	declare netwrite Boolean Net_NextMap for Teams[0];
 
 	Net_CheckpointsCount = G_CheckpointsCount;
-	Net_PlayersCount = AllPlayers.count;
-
+	
+	Net_NextMap = False;
+	G_ForcedNext = False;
 	PM::Start();
 }
 
