@@ -1,43 +1,47 @@
-/**
- *	Obstacle Reborn mode
- *  Authors : kana & lethan
- *  Original author : steeffeen
- */
-
 #Extends "Modes/ShootMania/ModeBase.Script.txt"
 
-#Const CompatibleMapTypes  "ObstacleArena, ObstacleTitleArena, ObstacleRebornArena"
-#Const Version             "21"
-#Const ScriptName          "ObstacleReborn.Script.txt"
+//#Const CompatibleMapTypes  "MeleeArena"
+//#Const Version             "1.0.0"
+//#Const ScriptName          "MyScript.Script.txt"
 
-#Include "Libs/Nadeo/Settings.Script.txt" as Settings
 #Include "TextLib" as TextLib
 #Include "MathLib" as MathLib
 #Include "Libs/Nadeo/ShootMania/SM.Script.txt" as SM
-#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 #Include "Libs/Nadeo/Message.Script.txt" as Message
-#Include "Libs/Nadeo/Interface.Script.txt" as Interface
-#Include "Libs/Nadeo/Layers.Script.txt" as Layers
 #Include "Libs/Nadeo/Json.Script.txt" as Json
 #Include "Libs/Nadeo/ShootMania/SpawnScreen.Script.txt" as SpawnScreen
 #Include "Libs/Lethan/ObstacleManialinks.Script.txt" as Manialinks
-#Include "Libs/Lethan/ObstaclePlayerManager.Script.txt" as PM
+#Include "Libs/Lethan/ObstaclePlayerManager.Script.txt" as PlayerManager
+
+// ---------------------------------- //
+// Constants
+// ---------------------------------- //
+//List of your constant variables
+
+// ---------------------------------- //
+// Settings
+// ---------------------------------- //
 
 #Setting S_TimeLimit 45 as _("Time limit in minutes")
 
-declare Integer G_TimeLimit;
+// ---------------------------------- //
+// Globales
+// ---------------------------------- //
+
 declare Text G_GamePhase;
+
+declare Integer G_TimeLimit;
+declare Integer G_StartTime;
 declare Boolean G_FreeTime;
 declare Boolean G_ForcedNext;
 
+//Landmarks
 declare CSmMapLandmark G_MainSpawn;
 declare CSmMapLandmark[Integer] G_Checkpoints;
-
 declare Integer G_CheckpointsCount;
 
 declare CUILayer G_ScoresTable;
 declare CUILayer G_UIEventManager;
-
 
 ***StartMap***
 ***
@@ -57,10 +61,17 @@ SpawnScreen::CreatePrettyRules(ModeName);
 ModeStatusMessage = Rules;
 
 SpawnScreen::CreateMapInfo();
-//Users_DestroyAllFakes();
-Users_SetNbFakeUsers(5,0);
+
+UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
+UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedHidden;
+sleep(2000);
+Users_DestroyAllFakes();
+//Users_SetNbFakeUsers(20,0);
+Bots();
 InitObstacle();
 ***
+
+
 
 ***PlayLoop***
 ***
@@ -80,10 +91,11 @@ if(G_GamePhase == "init"){
 	declare Text authorMsg = "Author : $z" ^ Map.AuthorNickName ^ " $z(" ^ Map.AuthorLogin ^ ")";
 	Message::SendStatusMessage(authorMsg, 5000, 3, CUIConfig::EUISound::Silence, 0);
 	Message::SendBigMessage(MapName, 5000, 3, CUIConfig::EUISound::EndRound, 0);
-	
+
 	sleep(2000);
-	
+
 	UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
+	UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::Normal;
 
 	G_TimeLimit = S_TimeLimit;
 
@@ -106,39 +118,34 @@ if(G_GamePhase == "play"){
 
 ***OnNewPlayer***
 ***
-PM::Init(Player.Id, G_Checkpoints);
-PM::UpdateScoresTable();
-declare UI <=> UIManager.GetUI(Player);
-UI.OverlayHideGauges = True;
+PlayerManager::Create(Player.Id);
+PlayerManager::UpdateScoresTable();
 ***
 
 ***OnNewSpectator***
 ***
-PM::Init(Spectator.Id, G_Checkpoints);
-PM::UpdateScoresTable();
-declare UI <=> UIManager.GetUI(Spectator);
-UI.OverlayHideGauges = True;
+PlayerManager::Create(Spectator.Id);
+PlayerManager::UpdateScoresTable();
 ***
-
-
 
 ***EndMap***
 ***
-UIManager.UIAll.UISequence = CUIConfig::EUISequence::PlayersPresentation;
-sleep(3000);
-Message::SendBigMessage("", 5000, 3, CUIConfig::EUISound::EndRound, 0);
-declare netwrite Boolean Net_NextMap for Teams[0];
 UIManager.UIAll.ScoreTableVisibility = CUIConfig::EVisibility::ForcedVisible;
+declare netwrite Boolean Net_NextMap for Teams[0];
 Net_NextMap = True;
+Message::SendBigMessage("", 2000, 3, CUIConfig::EUISound::EndRound, 0);
 sleep(8000);
 UIManager.UILayerDestroyAll();
-XmlRpc.SendCallback("endMap1", GetRankings());
 ***
+
 
 // ---------------------------------- //
 // Functions
 // ---------------------------------- //
-//XmlCallBack
+
+// ---------------------------------- //
+// XML RPC Callback
+// ---------------------------------- //
 Void SendXmlRpcCallback(Text _CallbackName, CSmPlayer _Player, Integer _RunTime, Ident _CheckpointId) {
 	if (_Player == Null || _Player.IsFakePlayer || _Player.Score == Null || _CallbackName == "" || _RunTime <= 0) return;
 	declare Respawns for _Player = 0;
@@ -159,12 +166,17 @@ Void SendXmlRpcCallback(Text _CallbackName, CSmPlayer _Player, Integer _RunTime,
 	XmlRpc.SendCallback(_CallbackName, Json::Enfold(JSON));
 }
 
-//Send Notice
+// ---------------------------------- //
+// Send notice
+// ---------------------------------- //
 Void SendNotice(CSmPlayer _Player, Text _Message){
 	declare UI <=> UIManager.GetUI(_Player);
 	UI.SendNotice(_Message, CUIConfig::ENoticeLevel::Default, Null, CUIConfig::EAvatarVariant::Default, CUIConfig::EUISound::Silence, 0);
 }
 
+// ---------------------------------- //
+// Spawn Start Player
+// ---------------------------------- //
 Void SpawnStartPlayer(Ident _PlayerId){
 	if(Players.existskey(_PlayerId)){
 		declare _Player = Players[_PlayerId];
@@ -175,21 +187,27 @@ Void SpawnStartPlayer(Ident _PlayerId){
 		SetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket, 4);
 		SetPlayerAmmo(_Player, CSmMode::EWeapon::Rocket, 4);
 
-		PM::RespawnPlayer(_Player.Id);
+		PlayerManager::RestartPlayer(_Player.Id);
 	}
 }
 
+// ---------------------------------- //
+// Jump Player to Spawn //DEPRECATED
+// ---------------------------------- //
 Void JumpPlayer(Ident _PlayerId){
 	if(Players.existskey(_PlayerId)){
 		declare _Player = Players[_PlayerId];
 		foreach(Spawn, MapLandmarks_PlayerSpawn){
-			if(Spawn.Tag == "CPSpawn" && Spawn.Order == PM::GetCheckpointProgress(_PlayerId)){
+			//if(Spawn.Tag == "CPSpawn" && Spawn.Order == PlayerManager::GetCheckpointProgress(_PlayerId)){
 				SpawnPlayer(_Player, 0, 100, Spawn.PlayerSpawn, Now);
-			}
+			//}
 		}
 	}
 }
 
+// ---------------------------------- //
+// Manage Respawn Player
+// ---------------------------------- //
 Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 	if(Players.existskey(_PlayerId)){
 		declare _Player = Players[_PlayerId];
@@ -201,12 +219,10 @@ Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 			SpawnStartPlayer(_Player.Id);
 		} else {
 			if(!RespawnAtStart){
-				if(PM::GetCheckpointObjective(_Player.Id) > 1){
-					if(PM::IsCheckpointOldType3(_PlayerId)){
-						JumpPlayer(_PlayerId);
-					} else {
-						PM::RespawnPlayerAtLastCP(_Player.Id);
-					}
+				if(PlayerManager::GetCheckpointObjective(_Player.Id) > 1){	
+					PlayerManager::RespawnPlayerAtLastCP(_Player.Id);
+					_Player.JumpPower = 0.1;
+					_Player.SpeedPower = 0.1;
 				} else {
 					SpawnStartPlayer(_Player.Id);
 				}
@@ -217,11 +233,19 @@ Void ManageRespawnPlayer(Ident _PlayerId, Boolean _CustomKey){
 	}
 }
 
+// ---------------------------------- //
+// Update Color
+// ---------------------------------- //
+Void UpdateColor(){
+	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+}
 
-
+// ---------------------------------- //
+// Checkpoint Event
+// ---------------------------------- //
 Void CheckpointEvent(Ident _PlayerId){
 	if(Players.existskey(_PlayerId)){
-		PM::DoCheckpointProgress(_PlayerId);
+		PlayerManager::DoCheckpointProgress(_PlayerId);
 
 		declare _Player = Players[_PlayerId];
 
@@ -231,41 +255,48 @@ Void CheckpointEvent(Ident _PlayerId){
 		declare Text diffPersonnal;
 		declare Text diffBest;
 
-		if(PM::IsNotHisFirstRun(_PlayerId)){
-			if(PM::GetLastCPDiff(_PlayerId) < 0){
-				diffPersonnal = " $99f" ^ TextLib::TimeToText(PM::GetLastCPDiff(_PlayerId), True);
+		if(PlayerManager::IsNotHisFirstRun(_PlayerId)){
+			if(PlayerManager::GetLastCPDiff(_PlayerId) < 0){
+				diffPersonnal = " $99f" ^ TextLib::TimeToText(PlayerManager::GetLastCPDiff(_PlayerId), True);
 				sound = 3;
 			} else {
-				diffPersonnal = " $f99+" ^ TextLib::TimeToText(PM::GetLastCPDiff(_PlayerId), True);
+				diffPersonnal = " $f99+" ^ TextLib::TimeToText(PlayerManager::GetLastCPDiff(_PlayerId), True);
 				sound = 0;
 			}
 		}
 
-		if(PM::IsMapFinishedBySomeone()){
-			if(PM::GetLastCPDiffBest(_PlayerId) < 0){
-				diffBest = " $ff0" ^ TextLib::TimeToText(PM::GetLastCPDiffBest(_PlayerId), True);
+		if(PlayerManager::IsMapFinishedBySomeone()){
+			if(PlayerManager::GetLastCPDiffBest(_PlayerId) < 0){
+				diffBest = " $ff0" ^ TextLib::TimeToText(PlayerManager::GetLastCPDiffBest(_PlayerId), True);
 				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Record, 0);
 			} else {
-				diffBest = " $999+" ^ TextLib::TimeToText(PM::GetLastCPDiffBest(_PlayerId), True);
+				diffBest = " $999+" ^ TextLib::TimeToText(PlayerManager::GetLastCPDiffBest(_PlayerId), True);
 			}
 		}
-		message = "Time : " ^ TextLib::TimeToText(PM::GetTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
+		message = "Time : " ^ TextLib::TimeToText(PlayerManager::GetTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
 		
 
 		Message::SendStatusMessage(_Player, message, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);
 
 		//Old maps
-		if(PM::IsCheckpointOldType3(_PlayerId)){
+		if(PlayerManager::IsCheckpointOldType3(_PlayerId)){
 			JumpPlayer(_PlayerId);
 		}
-		PM::UpdateScoresTable();
+		PlayerManager::UpdateScoresTable();
+
+		foreach(PlayerSpectator, PlayerManager::GetSpectators(_PlayerId)){
+			Message::SendStatusMessage(PlayerSpectator, message, 5000, 3, CUIConfig::EUISound::ScoreProgress, sound);			
+		}
 	}
 }
 
+// ---------------------------------- //
+// Finish Event
+// ---------------------------------- //
 Void FinishEvent(Ident _PlayerId){
 	if(Players.existskey(_PlayerId)){
-		PM::DoCheckpointProgress(_PlayerId);
-		PM::CalculateTime(_PlayerId);
+		PlayerManager::DoCheckpointProgress(_PlayerId);
+		PlayerManager::CalculateTime(_PlayerId);
 		
 		declare _Player = Players[_PlayerId];
 
@@ -274,40 +305,46 @@ Void FinishEvent(Ident _PlayerId){
 		declare Text diffPersonnal;
 		declare Text diffBest;
 
-		if(PM::IsNotHisFirstRun(_PlayerId)){
-			if(PM::GetBestTimeDiff(_Player.Id) < 0){
-				diffPersonnal = " $00f" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
+		if(PlayerManager::IsNotHisFirstRun(_PlayerId)){
+			if(PlayerManager::GetBestTimeDiff(_Player.Id) < 0){
+				diffPersonnal = " $00f" ^ TextLib::TimeToText(PlayerManager::GetBestTimeDiff(_Player.Id), True);
 				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Finish, 0);
 			} else {
-				diffPersonnal = " $f00+" ^ TextLib::TimeToText(PM::GetBestTimeDiff(_Player.Id), True);
+				diffPersonnal = " $f00+" ^ TextLib::TimeToText(PlayerManager::GetBestTimeDiff(_Player.Id), True);
 			}
 		}
 
-		if(PM::IsMapFinishedBySomeone()){
-			if(PM::GetBestTimeDiffAll(_PlayerId) < 0){
-				diffBest = " $ff0" ^ TextLib::TimeToText(PM::GetBestTimeDiffAll(_PlayerId), True);
+		if(PlayerManager::IsMapFinishedBySomeone()){
+			if(PlayerManager::GetBestTimeDiffAll(_PlayerId) < 0){
+				diffBest = " $ff0" ^ TextLib::TimeToText(PlayerManager::GetBestTimeDiffAll(_PlayerId), True);
 				Message::SendBigMessage(_Player, "", 10, 3, CUIConfig::EUISound::Record, 0);
 			} else {
-				diffBest = " $999+" ^ TextLib::TimeToText(PM::GetBestTimeDiffAll(_PlayerId), True);
+				diffBest = " $999+" ^ TextLib::TimeToText(PlayerManager::GetBestTimeDiffAll(_PlayerId), True);
 			}
 		}
 
-		message = "Final Time : " ^ TextLib::TimeToText(PM::GetLastTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
+		message = "Final Time : " ^ TextLib::TimeToText(PlayerManager::GetLastTime(_Player.Id), True) ^ diffPersonnal ^ diffBest;
 		
 		
 		Message::SendStatusMessage(_Player, message, 5000, 3, CUIConfig::EUISound::EndRound, 0);
 
-		SendXmlRpcCallback("OnFinish", _Player, PM::GetLastTime(_Player.Id), G_Checkpoints[G_Checkpoints.count - 1].Id);
+		SendXmlRpcCallback("OnFinish", _Player, PlayerManager::GetLastTime(_Player.Id), G_Checkpoints[G_Checkpoints.count - 1].Id);
 
-		PM::RaceFinish(_PlayerId);
+		PlayerManager::RaceFinish(_PlayerId);
 		
 		UnspawnPlayer(_Player);
 
 		Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
-		PM::UpdateScoresTable();
+		PlayerManager::UpdateScoresTable();
+		foreach(PlayerSpectator, PlayerManager::GetSpectators(_PlayerId)){
+			Message::SendStatusMessage(PlayerSpectator, message, 5000, 3, CUIConfig::EUISound::EndRound, 0);			
+		}
 	}
 }
 
+// ---------------------------------- //
+// Obstacle Main
+// ---------------------------------- //
 Void ObstacleMain(){
 
 	declare netwrite Integer ForceNextCount for Teams[0];
@@ -316,24 +353,33 @@ Void ObstacleMain(){
 	//Players
 	foreach(Player, AllPlayers){
 
-		PM::UpdatePlayerRawData(Player.Id);
+		if(Player.JumpPower < 0.5){
+			Player.JumpPower += 0.1;
+			Player.SpeedPower += 0.1;
+		} else {
+			Player.JumpPower = 1.0;
+			Player.SpeedPower = 1.0;
+		}
+		
+		PlayerManager::Update(Player.Id);
 		if(!Player.RequestsSpectate){
 			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::NotSpawned){
 				SpawnStartPlayer(Player.Id);
 			}
-			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && !PM::IsRaceStarted(Player.Id)){
-				PM::RaceStart(Player.Id);
+			if(Player.SpawnStatus == CSmPlayer::ESpawnStatus::Spawned && !PlayerManager::IsRaceStarted(Player.Id)){
+				PlayerManager::RaceStart(Player.Id);
+				PlayerManager::UpdateScoresTable();
 			}
 
 			if(Player.CapturedLandmark != Null){
 				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 4) == "Goal"){
-					if(PM::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
+					if(PlayerManager::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
 						FinishEvent(Player.Id);
 					}
 				}
 				if(TextLib::SubText(Player.CapturedLandmark.Tag, 0, 10) == "Checkpoint"){
-					if(Player.CapturedLandmark.Order == G_Checkpoints[PM::GetCheckpointObjective(Player.Id)].Order){
-						if(PM::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
+					if(Player.CapturedLandmark.Order == G_Checkpoints[PlayerManager::GetCheckpointObjective(Player.Id)].Order){
+						if(PlayerManager::GetCheckpointObjective(Player.Id) == G_CheckpointsCount){
 							FinishEvent(Player.Id);
 						} else {
 							CheckpointEvent(Player.Id);
@@ -343,7 +389,7 @@ Void ObstacleMain(){
 			}
 
 
-			//Handle stamina if illimited;
+			//Handle stamina if unlimited;
 			declare Boolean StaminaUnlimited for Player;
 
 			//Respawn CP or Respawn
@@ -376,7 +422,7 @@ Void ObstacleMain(){
 		switch(Event.Type){
 			case CSmModeEvent::EType::OnShoot : {
 				PassOn(Event);
-				PM::OnShoot(Event.Shooter.Id);
+				PlayerManager::OnShoot(Event.Shooter.Id);
 			}
 			case CSmModeEvent::EType::OnPlayerRequestRespawn : {
 				Discard(Event);
@@ -436,56 +482,27 @@ Void ObstacleMain(){
 	}
 }
 
-//Verify map
-Boolean VerifyMap(){
-	declare Boolean clean;
-	clean = True;
-
-	if(TextLib::SubText(Map.MapType, 11, 19) == "ObstacleRebornArena"){
-		if(MapLandmarks_PlayerSpawn.count != 1){
-			clean = False;
-		}
+// ---------------------------------- //
+// Bots
+// ---------------------------------- //
+Void Bots(){
+	foreach(Bot, BotPlayers){
+		Bot.Driver.Behaviour = CSmPlayerDriver::ESmDriverBehaviour::Saunter;
+		Bot.Driver.ForcedTarget = Players[0];
 	}
-
-	declare goalExists = False;
-	
-	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){
-		foreach(FinishFind, MapLandmarks_Gauge){
-			if(FinishFind.Tag == "Goal"){
-				goalExists = True;
-			}
-		}
-		if(!goalExists){
-			clean = False;
-		}
-	} else {
-		goalExists = True;
-	}
-
-	
-
-	declare Boolean[Integer] orders;
-
-	foreach(Test, MapLandmarks_Gauge){
-		if(orders.existskey(Test.Order)){
-			clean = False;
-		} else {
-			orders[Test.Order] = True;
-		}
-	}
-
-	return clean;
 }
 
-//Init obstacle
+// ---------------------------------- //
+// Init obstacle
+// ---------------------------------- //
 Void InitObstacle(){
-	
 	// Set mode options
 	UseClans = False;
 	UsePvPCollisions = False;
 	UsePvPWeapons = False;
 	UseSameWallJump = True;
-	MB_Sleep(1);
+	ForceNavMapsComputation = True;
+	
 	G_GamePhase = "verify";
 
 	//Colors
@@ -494,7 +511,7 @@ Void InitObstacle(){
 		Base.IsActive = True;
 	}
 
-	Teams[0].ColorPrimary = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+	UpdateColor();	
 	
 	SM::SetupDefaultVisibility();
 
@@ -559,31 +576,65 @@ Void InitObstacle(){
 		declare removed = ChecksRaw.remove(nextCheck);
 	}
 	
+	/*
 	//Add goal retro compatibility
-	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){
-		foreach(FinishFind, MapLandmarks_Gauge){
-			if(FinishFind.Tag == "Goal"){
-				G_CheckpointsCount += 1;
-				G_Checkpoints[G_CheckpointsCount] <=> FinishFind;
-			}
+	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){*/
+	foreach(FinishFind, MapLandmarks_Gauge){
+		if(FinishFind.Tag == "Goal"){
+			G_CheckpointsCount += 1;
+			G_Checkpoints[G_CheckpointsCount] <=> FinishFind;
 		}
 	}
+	//}
 
 	declare netwrite Integer Net_CheckpointsCount for Teams[0];
 
 	declare netwrite Boolean Net_NextMap for Teams[0];
 
 	Net_CheckpointsCount = G_CheckpointsCount;
-	
 	Net_NextMap = False;
-	G_ForcedNext = False;
-	PM::Start();
+
+	PlayerManager::Start(G_Checkpoints);
+	
 }
 
-Text GetRankings() {
-	declare PlayerList = "";
-	foreach (Player in AllPlayers) {
-		PlayerList ^= Player.Login ^ ":" ^ PM::GetBestTime(Player.Id);
+// ---------------------------------- //
+// Verify Map
+// ---------------------------------- //
+Boolean VerifyMap(){
+	declare Boolean clean;
+	clean = True;
+
+	if(TextLib::SubText(Map.MapType, 11, 19) == "ObstacleRebornArena"){
+		if(MapLandmarks_PlayerSpawn.count != 1){
+			clean = False;
+		}
 	}
-	return PlayerList;
+
+	declare goalExists = False;
+	
+	if(TextLib::SubText(Map.MapType, 11, 19) != "ObstacleRebornArena"){
+		foreach(FinishFind, MapLandmarks_Gauge){
+			if(FinishFind.Tag == "Goal"){
+				goalExists = True;
+			}
+		}
+		if(!goalExists){
+			clean = False;
+		}
+	} else {
+		goalExists = True;
+	}
+
+	declare Boolean[Integer] orders;
+
+	foreach(Test, MapLandmarks_Gauge){
+		if(orders.existskey(Test.Order)){
+			clean = False;
+		} else {
+			orders[Test.Order] = True;
+		}
+	}
+
+	return clean;
 }

@@ -1,39 +1,47 @@
 #Include "TextLib" as TextLib
 #Include "MathLib" as MathLib
 #Include "Libs/Lethan/ObstacleManialinks.Script.txt" as Manialinks
-
-declare Ident G_LayerInterfaceId;
-
-declare CSmMapLandmark[Integer] G_Checkpoints;
+#Include "Libs/Nadeo/ShootMania/Score.Script.txt" as Score
 
 declare Integer[Integer] G_BestCheckpointsTime;
 declare Integer[Integer] G_BestIntCheckpointsTime;
 declare Integer G_BestPlayerTime;
 
+declare Integer[Text] G_BestCheckpointsTimes;
 
+declare CSmMapLandmark[Integer] G_Checkpoints;
+declare Boolean G_IsMapFinishedBySomeone;
+
+// Init
+Void Start(CSmMapLandmark[Integer] Checkpoints){
+	G_Checkpoints = Checkpoints;
+	G_IsMapFinishedBySomeone = False;
+
+	G_BestCheckpointsTime = Integer[Integer];
+	G_BestIntCheckpointsTime = Integer[Integer];
+	
+	G_BestPlayerTime = -1;
+	
+	
+	G_BestCheckpointsTimes = Integer[Text];
+
+	foreach(Player, AllPlayers){
+		declare Boolean AlreadyCreated for Player;
+
+		AlreadyCreated = False;
+	}
+}
+
+// Get Player Id From Name
 Ident GetPlayerId(Text _Login){
 	declare Ident valueReturned;
-	foreach (Player in Players) {
+	foreach (Player in AllPlayers) {
 		if (Player.Login == _Login) {
 			valueReturned = Player.Id;
 			break;
 		}
 	}
 	return valueReturned;
-}
-
-Integer GetCheckpointProgress(Ident _PlayerId){
-	declare _CurrentCheckpoint = -1;
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer CurrentCheckpoint for Player;
-
-			_CurrentCheckpoint = CurrentCheckpoint;
-		}
-	}
-
-	return _CurrentCheckpoint;
 }
 
 Integer GetPlace(Ident _PlayerId){
@@ -63,44 +71,34 @@ Integer GetPlace(Ident _PlayerId){
 	return value;
 }
 
-Integer CalculateTheorical(Ident _PlayerId){
-	declare Theorical = 0;
+Integer CalculateTheoretical(Ident _PlayerId){
+	declare Theoretical = 0;
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
 			declare Integer[Integer] CheckpointsBestIntTime for Player;
 
 			foreach(LocalTime, CheckpointsBestIntTime){
-				Theorical += LocalTime;
+				Theoretical += LocalTime;
 			}
 		}
 	}
 
-	return Theorical;
+	return Theoretical;
 }
 
-Integer CalculateBestTheorical(){
-	declare BestTheorical = 0;
+Integer CalculateBestTheoretical(){
+	declare BestTheoretical = 0;
 	foreach(LocalTime, G_BestIntCheckpointsTime){
-		BestTheorical += LocalTime;
+		BestTheoretical += LocalTime;
 	}
-	return BestTheorical;
+	return BestTheoretical;
 }
 
-Integer GetCheckpointObjective(Ident _PlayerId){
-	declare _CheckpointObjective = -1;
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer CurrentCheckpoint for Player;
 
-			_CheckpointObjective = CurrentCheckpoint + 1;
-		}
-	}
-
-	return _CheckpointObjective;
-}
-
+// ---------------------------------- //
+// About player
+// ---------------------------------- //
 Integer GetRespawnsCount(Ident _PlayerId){
 	declare _RespawnsCount = -1;
 	if(_PlayerId != NullId){
@@ -111,35 +109,26 @@ Integer GetRespawnsCount(Ident _PlayerId){
 			_RespawnsCount = Respawns;
 		}
 	}
-
 	return _RespawnsCount;
 }
 
-Void UpdateMarkers(Ident _PlayerId){
+Boolean IsMapFinishedBySomeone(){
+	return G_IsMapFinishedBySomeone;
+}
+
+Boolean IsNotHisFirstRun(Ident _PlayerId){
+	declare _IsNotHisFirstRun = False;
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
-			declare UI <=> UIManager.GetUI(Player);
-			declare netread Text Net_PlayerSpectate for UI;
-			declare netread Text Net_PlayerSpectateManual for UI;
+			declare Integer Finishs for Player;
 
-			declare CSmPlayer PlayerTarget for Player;
-			
-			declare Integer CurrentCheckpoint for PlayerTarget;
-			declare Boolean RaceStarted for PlayerTarget;
-
-			UI.MarkersXML = "";
-			if(RaceStarted){
-				if(GetCheckpointObjective(PlayerTarget.Id) == G_Checkpoints.count){
-					UI.MarkersXML = """<marker label="Goal" pos="{{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.X}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Y + 2}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Z}}}" />""";	
-				} else {
-					if(G_Checkpoints.existskey(GetCheckpointObjective(PlayerTarget.Id))){
-						UI.MarkersXML = """<marker label="Checkpoint {{{GetCheckpointObjective(PlayerTarget.Id)}}}" pos="{{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.X}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Y + 2}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Z}}}" />""";
-					}
-				}
+			if(Finishs > 0){
+				_IsNotHisFirstRun = True;
 			}
 		}
 	}
+	return _IsNotHisFirstRun;
 }
 
 Integer GetTime(Ident _PlayerId){
@@ -167,6 +156,37 @@ Integer GetLastTime(Ident _PlayerId){
 		}
 	}
 	return Time;
+}
+
+Void CalculateTime(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+
+			declare Integer BestTime for Player;
+			declare Integer BestTimeDiff for Player;
+			declare Integer BestTimeDiffAll for Player;
+			declare Integer LastTime for Player;
+
+			LastTime = GetTime(_PlayerId);
+
+			if(BestTime != -1){
+				BestTimeDiff = GetTime(_PlayerId) - BestTime;
+				if(BestTimeDiff < 0){
+					BestTime = GetTime(_PlayerId);
+				}
+				BestTimeDiffAll = GetTime(_PlayerId) - G_BestPlayerTime;
+				if(BestTimeDiffAll < 0){
+					G_BestPlayerTime = BestTime;
+				}
+			} else {
+				BestTime = GetTime(_PlayerId);
+				if(G_BestPlayerTime == -1){
+					G_BestPlayerTime = BestTime;
+				}
+			}
+		}
+	}
 }
 
 Integer GetBestTime(Ident _PlayerId){
@@ -223,72 +243,84 @@ Boolean IsRaceStarted(Ident _PlayerId){
 	return _IsRaceStarted;	
 }
 
-Boolean IsMapFinishedBySomeone(){
-	declare Boolean value;
-	value = False;
-	declare finishCount = 0;
-	foreach(Player, Players){
-		declare Integer Finishs for Player;
-		if(Finishs > 0){
-			value = True;
-		}
-	}
-	return value;
-}
-
-Void UpdateScoresTable(){
-	//All
-	declare netwrite Integer Net_BestTheorical for Teams[0];
-	Net_BestTheorical = CalculateBestTheorical();
-
-	//Score table
-	declare netwrite Text[] Net_PlayersTimeData for Teams[0];
-	
-	Net_PlayersTimeData.clear();
-
-	declare Integer[Ident] Times;
-	declare CSmPlayer[] PlayersWithNoTime;
-
-	Times = Integer[Ident];
-	PlayersWithNoTime.clear();
-
-	
-	foreach(Player, Players){
-		if(GetBestTime(Player.Id) != -1){
-			Times[Player.Id] = GetBestTime(Player.Id);
-		} else {
-			PlayersWithNoTime.add(Player);
-		}
-	}
-
-	Times = Times.sort();
-
-	foreach(Time, Times){
-		declare Player = Players[Times.keyof(Time)];
-		declare data = Player.Login ^ "|" ^ Time ^ "|" ^ GetCheckpointProgress(Player.Id) ^ "|" ^ GetRespawnsCount(Player.Id);
-		Net_PlayersTimeData.add(data);
-	}
-
-	foreach(OtherPlayer, PlayersWithNoTime){
-		declare data = OtherPlayer.Login ^ "|" ^ -1 ^ "|" ^ GetCheckpointProgress(OtherPlayer.Id) ^ "|" ^ GetRespawnsCount(OtherPlayer.Id);
-		Net_PlayersTimeData.add(data);
-	}
-}
-
-Void UpdateSpectatorCount(Ident _PlayerId){
+Integer GetLastCPDiff(Ident _PlayerId){
+	declare Integer valueReturn;
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
-			declare Integer SpecCount for Player;
+			declare Integer CurrentCheckpoint for Player;
+			declare Integer[Integer] CheckpointsTimeDiff for Player;
+			if(CheckpointsTimeDiff.existskey(CurrentCheckpoint)){
+				valueReturn = CheckpointsTimeDiff[CurrentCheckpoint];
+			}
+		}
+	}
+	return valueReturn;
+}
 
-			SpecCount = 0;
-			foreach(OtherPlayer, AllPlayers){
-				if(OtherPlayer.Login != Player.Login){
-					declare UI2 <=> UIManager.GetUI(OtherPlayer);
-					declare netread Text Net_PlayerSpectate for UI2;
-					declare netread Text Net_PlayerSpectateManual for UI2;
-					if(Net_PlayerSpectate == Player.Login || Net_PlayerSpectateManual == Player.Login){
-						SpecCount += 1;
+Integer GetLastCPDiffBest(Ident _PlayerId){
+	declare Integer valueReturn;
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer CurrentCheckpoint for Player;
+			declare Integer[Integer] CheckpointsBestTimeDiff for Player;
+			
+			if(CheckpointsBestTimeDiff.existskey(CurrentCheckpoint)){
+				valueReturn = CheckpointsBestTimeDiff[CurrentCheckpoint];
+			}
+		}
+	}
+	return valueReturn;
+}
+
+Integer GetCheckpointObjective(Ident _PlayerId){
+	declare _CheckpointObjective = -1;
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer CurrentCheckpoint for Player;
+
+			_CheckpointObjective = CurrentCheckpoint + 1;
+		}
+	}
+	return _CheckpointObjective;
+}
+
+Void OnShoot(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer ShotsFired for Player;
+
+			ShotsFired += 1; 
+		}
+	}
+}
+
+// ---------------------------------- //
+// Manialink
+// ---------------------------------- //
+Void UpdateMarkers(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare UI <=> UIManager.GetUI(Player);
+			declare netread Text Net_PlayerSpectate for UI;
+			declare netread Text Net_PlayerSpectateManual for UI;
+
+			declare CSmPlayer PlayerTarget for Player;
+			
+			declare Integer CurrentCheckpoint for PlayerTarget;
+			declare Boolean RaceStarted for PlayerTarget;
+
+			UI.MarkersXML = "";
+			if(RaceStarted){
+				if(GetCheckpointObjective(PlayerTarget.Id) == G_Checkpoints.count){
+					UI.MarkersXML = """<marker label="Goal" pos="{{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.X}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Y + 2}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Z}}}" />""";	
+				} else {
+					if(G_Checkpoints.existskey(GetCheckpointObjective(PlayerTarget.Id))){
+						UI.MarkersXML = """<marker label="Checkpoint {{{GetCheckpointObjective(PlayerTarget.Id)}}}" pos="{{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.X}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Y + 2}}} {{{G_Checkpoints[GetCheckpointObjective(PlayerTarget.Id)].Position.Z}}}" />""";
 					}
 				}
 			}
@@ -296,88 +328,131 @@ Void UpdateSpectatorCount(Ident _PlayerId){
 	}
 }
 
-Void UpdatePlayerDataManialink(Ident _PlayerId){
+Void UpdateManialink(Ident _PlayerId, Boolean _TruePlayer){
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
-			declare CSmPlayer PlayerTarget for Player;
-			
-			declare Integer PlayerStartTime for PlayerTarget;
-			declare Boolean RaceStarted for PlayerTarget;
+			declare UI <=> UIManager.GetUI(Player);
 
+			declare CSmPlayer PlayerTarget for Player;
+			declare Text LastSpectator for Player;
+			declare Text LastSpectatorForced for Player;
+
+			// ---------------------------------- //
+			// Current Player or Player Specced
+			// ---------------------------------- //
+			//Spectators
+			declare Text[] PlayerSpectators for PlayerTarget;
+
+			//Player status
+			declare Boolean RaceStarted for PlayerTarget;
+			declare Integer PlayerStartTime for PlayerTarget;
+
+			//Player stuff
 			declare Boolean HasAmmo for PlayerTarget;
-			declare Boolean AmmoRegen for PlayerTarget;
 			declare Boolean AmmoUnlimited for PlayerTarget;
+			declare Boolean AmmoRegen for PlayerTarget;
 			declare Boolean StaminaUnlimited for PlayerTarget;
 			declare Boolean StaminaRegen for PlayerTarget;
 
-			declare Integer BestTime for PlayerTarget;
-			declare Integer Runs for PlayerTarget;
 			declare Integer Finishs for PlayerTarget;
 			declare Integer Respawns for PlayerTarget;
+			declare Integer CurrentCheckpoint for PlayerTarget;
 
 			declare Integer ShotsFired for PlayerTarget;
 			declare Integer StaminaUsed for PlayerTarget;
 			declare Real MaxSpeed for PlayerTarget;
+
+			//Player Time
+			declare Integer BestTime for PlayerTarget;
+			declare Integer Theoretical for PlayerTarget;
 			declare Integer Place for PlayerTarget;
-			declare Integer Theorical for PlayerTarget;
 
-			declare Integer SpecCount for PlayerTarget;
-
-			declare UI <=> UIManager.GetUI(Player);
-
-			
+			// ---------------------------------- //
+			// NET Manialink
+			// ---------------------------------- //
+			//Player status
+			declare netwrite Boolean Net_RaceStarted for UI;
 			declare netwrite Integer Net_PlayerStartTime for UI;
-			declare netwrite Boolean Net_Running for UI;
-
+			declare netwrite Integer Net_SpecCount for UI;
+			declare netwrite Integer Net_PlayerCPTime for UI;
+			//Player stuff
 			declare netwrite Boolean Net_HasAmmo for UI;
 			declare netwrite Boolean Net_AmmoUnlimited for UI;
 			declare netwrite Boolean Net_AmmoRegen for UI;
 			declare netwrite Boolean Net_StaminaUnlimited for UI;
 			declare netwrite Boolean Net_StaminaRegen for UI;
 
-			declare netwrite Boolean Net_RespawnAtStart for UI;
-
-			declare netwrite Integer Net_BestTime for UI;
-			declare netwrite Integer Net_Runs for UI;
 			declare netwrite Integer Net_Finishs for UI;
 			declare netwrite Integer Net_Respawns for UI;
+			declare netwrite Integer Net_CheckpointProgress for UI;
 
 			declare netwrite Integer Net_ShotsFired for UI;
 			declare netwrite Integer Net_StaminaUsed for UI;
-			declare netwrite Integer Net_CheckpointProgress for UI;
 			declare netwrite Real Net_MaxSpeed for UI;
+
+			//Player time
+			declare netwrite Integer Net_BestTime for UI;
+			declare netwrite Integer Net_Theoretical for UI;
 			declare netwrite Integer Net_Place for UI;
-			declare netwrite Integer Net_Theorical for UI;
 
-			declare netwrite Integer Net_SpecCount for UI;
+			declare netread Boolean RespawnAtStart for UI;
+			declare netwrite Boolean Net_RespawnAtStart for UI;
 
+			Net_RespawnAtStart = RespawnAtStart;
+
+			Net_RaceStarted = RaceStarted;
 			Net_PlayerStartTime = PlayerStartTime;
-			Net_Running = RaceStarted;
-
+			Net_PlayerCPTime = Now - PlayerStartTime;
+			Net_SpecCount = PlayerSpectators.count;
 			Net_HasAmmo = HasAmmo;
 			Net_AmmoUnlimited = AmmoUnlimited;
 			Net_AmmoRegen = AmmoRegen;
 			Net_StaminaUnlimited = StaminaUnlimited;
 			Net_StaminaRegen = StaminaRegen;
 
-			Net_BestTime = BestTime;
-			Net_Runs = Runs;
 			Net_Finishs = Finishs;
 			Net_Respawns = Respawns;
+			Net_CheckpointProgress = CurrentCheckpoint;
 
 			Net_ShotsFired = ShotsFired;
 			Net_StaminaUsed = StaminaUsed;
-			Net_CheckpointProgress = GetCheckpointProgress(PlayerTarget.Id);
 			Net_MaxSpeed = MaxSpeed;
-			Net_Place = Place;
-			Net_Theorical = Theorical;
 
-			Net_SpecCount = SpecCount;
+			Net_BestTime = BestTime;
+			Net_Theoretical = Theoretical;
+			Net_Place = Place;
 
 			UpdateMarkers(_PlayerId);
+
+			if(_TruePlayer){
+				if(PlayerSpectators.count > 0){
+					foreach(PlayerSpectator, PlayerSpectators){
+						if(AllPlayers.existskey(GetPlayerId(PlayerSpectator))){
+							UpdateManialink(GetPlayerId(PlayerSpectator), False);
+						}
+					}
+				}
+			}
 		}
 	}
+}
+
+// ---------------------------------- //
+// Checkpoints stuff
+// ---------------------------------- //
+Integer GetCheckpointProgress(Ident _PlayerId){
+	declare _CurrentCheckpoint = -1;
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Integer CurrentCheckpoint for Player;
+
+			_CurrentCheckpoint = CurrentCheckpoint;
+		}
+	}
+
+	return _CurrentCheckpoint;
 }
 
 Boolean IsCheckpointOldType3(Ident _PlayerId){
@@ -406,6 +481,12 @@ Void UpdatePlayerStuff(Ident _PlayerId, Boolean _FastRespawn){
 			declare Boolean AmmoUnlimited for _Player;
 			declare Boolean AmmoRegen for _Player;
 
+			declare CUILayer LayerSoundStamina for _Player;
+			declare CUILayer LayerSoundAmmo for _Player;
+			
+			LayerSoundAmmo.ManialinkPage = "";
+			LayerSoundStamina.ManialinkPage = "";
+
 			if(G_Checkpoints.existskey(GetCheckpointProgress(_PlayerId))){
 				declare CheckpointTag = G_Checkpoints[GetCheckpointProgress(_PlayerId)].Tag;
 				
@@ -421,7 +502,14 @@ Void UpdatePlayerStuff(Ident _PlayerId, Boolean _FastRespawn){
 							HasAmmo = True;
 							AmmoUnlimited = True;
 							AmmoRegen = True;
+							
+							
 						}
+						LayerSoundAmmo.ManialinkPage = """
+								<manialink version="2">
+									<audio looping="1" hidden="1" play="1" data="https://dl.dropboxusercontent.com/u/42719494/Maniaplanet/Sounds/ammo.ogg"/>
+								</manialink>
+							""";
 					} else {
 						AmmoUnlimited = False;
 						if(GetPlayerAmmoMax(_Player, CSmMode::EWeapon::Rocket) != TextLib::ToInteger(AnchorDetails[1]) || _FastRespawn){
@@ -438,6 +526,7 @@ Void UpdatePlayerStuff(Ident _PlayerId, Boolean _FastRespawn){
 							} else {
 								_Player.AmmoGain = 0.0;
 								AmmoRegen = False;
+								
 							}
 						}
 
@@ -457,9 +546,15 @@ Void UpdatePlayerStuff(Ident _PlayerId, Boolean _FastRespawn){
 						StaminaRegen = True;
 						_Player.Stamina = 3600;
 						_Player.StaminaGain = 1.0;
+						
 					} else if(TextLib::ToInteger(AnchorDetails[2]) == 2){
 						StaminaUnlimited = True;
 						_Player.Stamina = 3600;
+						LayerSoundStamina.ManialinkPage = """
+							<manialink version="2">
+								<audio looping="1" hidden="1" play="1" data="https://dl.dropboxusercontent.com/u/42719494/Maniaplanet/Sounds/stamina.ogg"/>
+							</manialink>
+						""";
 					}
 					
 					if(!StaminaUnlimited){
@@ -518,126 +613,15 @@ Void UpdatePlayerStuff(Ident _PlayerId, Boolean _FastRespawn){
 	}
 }
 
-Integer GetLastCPDiff(Ident _PlayerId){
-	declare Integer valueReturn;
+Void UpdateCheckpointLeaderboard(Ident _PlayerId, Integer _Checkpoint, Integer _Time){
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer CurrentCheckpoint for Player;
-			declare Integer[Integer] CheckpointsTimeDiff for Player;
-			if(CheckpointsTimeDiff.existskey(CurrentCheckpoint)){
-				valueReturn = CheckpointsTimeDiff[CurrentCheckpoint];
-			}
-		}
-	}
-	return valueReturn;
-}
+			declare key = AllPlayers[_PlayerId].Login ^ "|" ^ _Checkpoint;
+			G_BestCheckpointsTimes[key] = _Time;
 
-Integer GetLastCPDiffBest(Ident _PlayerId){
-	declare Integer valueReturn;
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer CurrentCheckpoint for Player;
-			declare Integer[Integer] CheckpointsBestTimeDiff for Player;
-			
-			if(CheckpointsBestTimeDiff.existskey(CurrentCheckpoint)){
-				valueReturn = CheckpointsBestTimeDiff[CurrentCheckpoint];
-			}
-		}
-	}
-	return valueReturn;
-}
+			declare netwrite Integer[Text] Net_CheckLeaderBoard for Teams[0];
 
-Void OnShoot(Ident _PlayerId){
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer ShotsFired for Player;
-
-			ShotsFired += 1; 
-		}
-	}
-}
-
-Void CalculateTime(Ident _PlayerId){
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-
-			declare Integer BestTime for Player;
-			declare Integer BestTimeDiff for Player;
-			declare Integer BestTimeDiffAll for Player;
-			declare Integer LastTime for Player;
-
-			LastTime = GetTime(_PlayerId);
-
-			if(BestTime != -1){
-				BestTimeDiff = GetTime(_PlayerId) - BestTime;
-				if(BestTimeDiff < 0){
-					BestTime = GetTime(_PlayerId);
-				}
-				BestTimeDiffAll = GetTime(_PlayerId) - G_BestPlayerTime;
-				if(BestTimeDiffAll < 0){
-					G_BestPlayerTime = BestTime;
-				}
-			} else {
-				BestTime = GetTime(_PlayerId);
-				if(G_BestPlayerTime == -1){
-					G_BestPlayerTime = BestTime;
-				}
-			}
-		}
-	}
-}
-
-Boolean IsNotHisFirstRun(Ident _PlayerId){
-	declare notFirstRun = True;
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Integer Finishs for Player;
-
-			if(Finishs == 0){
-				notFirstRun = False;
-			}
-		}
-	}
-	return notFirstRun;
-}
-
-Void RespawnPlayerAtLastCP(Ident _PlayerId){
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			if(G_Checkpoints.existskey(GetCheckpointProgress(_PlayerId))){
-				declare Player = AllPlayers[_PlayerId];
-				declare Integer Respawns for Player;
-
-				Respawns += 1;
-
-				UpdatePlayerStuff(_PlayerId, True);
-		
-				UpdateScoresTable();
-				RespawnPlayer(Player, G_Checkpoints[GetCheckpointProgress(_PlayerId)]);
-				UpdatePlayerDataManialink(_PlayerId);
-			}
-		}
-	}
-}
-
-Void RespawnPlayer(Ident _PlayerId){
-	if(_PlayerId != NullId){
-		if(AllPlayers.existskey(_PlayerId)){
-			declare Player = AllPlayers[_PlayerId];
-			declare Boolean RaceStarted for Player;
-			declare Integer Respawns for Player;
-			declare Integer CurrentCheckpoint for Player;
-
-			RaceStarted = False;
-			Respawns = 0;
-			CurrentCheckpoint = 0;
-
-			UpdatePlayerDataManialink(_PlayerId);
+			Net_CheckLeaderBoard = G_BestCheckpointsTimes;
 		}
 	}
 }
@@ -665,8 +649,9 @@ Void DoCheckpointProgress(Ident _PlayerId){
 			} else {
 				CheckpointsBestTime[GetCheckpointObjective(_PlayerId)] = CheckpointsTime[GetCheckpointObjective(_PlayerId)];
 			}
+			UpdateCheckpointLeaderboard(_PlayerId, GetCheckpointObjective(_PlayerId), CheckpointsBestTime[GetCheckpointObjective(_PlayerId)]);
 
-			//Check if checkpoit time is best all players
+			//Check if checkpoint time is best all players
 			if(G_BestCheckpointsTime.existskey(GetCheckpointObjective(_PlayerId))){
 				//Get diff between best all and current
 				CheckpointsBestTimeDiff[GetCheckpointObjective(_PlayerId)] = CheckpointsTime[GetCheckpointObjective(_PlayerId)] - G_BestCheckpointsTime[GetCheckpointObjective(_PlayerId)];
@@ -705,10 +690,129 @@ Void DoCheckpointProgress(Ident _PlayerId){
 			StartLocalTime = Now;
 
 			CurrentCheckpoint += 1;
+			Player.Score.Points = CurrentCheckpoint;
 			UpdatePlayerStuff(_PlayerId, False);
-			UpdatePlayerDataManialink(_PlayerId);
+			UpdateManialink(_PlayerId, True);
 		}
 	}
+}
+
+// ---------------------------------- //
+// Scores Table
+// ---------------------------------- //
+Void UpdateScoresTable(){
+	//All
+	declare netwrite Integer Net_BestTheoretical for Teams[0];
+	Net_BestTheoretical = CalculateBestTheoretical();
+
+	//Score table
+	declare netwrite Text[] Net_PlayersTimeData for Teams[0];
+	
+	Net_PlayersTimeData.clear();
+
+	declare Integer[Ident] Times;
+	declare Integer[Ident] CPs;
+	declare CSmPlayer[] PlayersWithNoTime;
+
+	Times = Integer[Ident];
+	
+	declare Ident test;
+
+	foreach(Player, Players){
+		if(GetBestTime(Player.Id) != -1){
+			Times[Player.Id] = GetBestTime(Player.Id);
+		}
+		if(Player.Login == "lethan"){
+			test = Player.Id;
+		}
+	}
+
+	Times = Times.sort();
+	
+
+	foreach(Time, Times){
+		declare Player = Players[Times.keyof(Time)];
+		declare data = Player.Login ^ "|" ^ Time ^ "|" ^ GetCheckpointProgress(Player.Id) ^ "|" ^ GetRespawnsCount(Player.Id);
+
+		declare Removed = Times.removekey(Player.Id);
+		Net_PlayersTimeData.add(data);
+	}
+
+	
+
+	foreach(Score, Scores){
+		if(Players.existskey(GetPlayerId(Score.User.Login))){
+			declare OtherPlayer = Players[GetPlayerId(Score.User.Login)];
+
+			if(GetBestTime(OtherPlayer.Id) == -1){
+				declare data = OtherPlayer.Login ^ "|" ^ -1 ^ "|" ^ Score.Points ^ "|" ^ GetRespawnsCount(OtherPlayer.Id);
+				Net_PlayersTimeData.add(data);
+			}
+		}
+	}
+}
+
+// ---------------------------------- //
+// Respawns
+// ---------------------------------- //
+
+Void RestartPlayer(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Boolean RaceStarted for Player;
+			declare Integer Respawns for Player;
+			declare Integer CurrentCheckpoint for Player;
+
+			RaceStarted = False;
+			Respawns = 0;
+			CurrentCheckpoint = 0;
+
+			UpdateManialink(_PlayerId, True);
+
+			declare CUILayer LayerSoundStamina for Player;
+			declare CUILayer LayerSoundAmmo for Player;
+
+			if(LayerSoundStamina != Null) LayerSoundStamina.ManialinkPage = "";
+			if(LayerSoundAmmo != Null) LayerSoundAmmo.ManialinkPage = "";
+		}
+	}
+}
+
+Void RespawnPlayerAtLastCP(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			if(G_Checkpoints.existskey(GetCheckpointProgress(_PlayerId))){
+				declare Player = AllPlayers[_PlayerId];
+				declare Integer Respawns for Player;
+
+				Respawns += 1;
+
+				UpdatePlayerStuff(_PlayerId, True);
+				UpdateManialink(_PlayerId, True);
+				RespawnPlayer(Player, G_Checkpoints[GetCheckpointProgress(_PlayerId)]);
+			}
+		}
+	}
+}
+
+
+// ---------------------------------- //
+// About player - Race Status
+// ---------------------------------- //
+Boolean IsRaceStarted(Ident _PlayerId){
+	declare _IsRaceStarted = False;
+
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Boolean RaceStarted for Player;
+
+			_IsRaceStarted = RaceStarted;
+		}
+	}
+
+	return _IsRaceStarted;	
 }
 
 Void RaceStart(Ident _PlayerId){
@@ -717,6 +821,8 @@ Void RaceStart(Ident _PlayerId){
 			declare Player = AllPlayers[_PlayerId];
 			declare Boolean RaceStarted for Player;
 			declare Integer PlayerStartTime for Player;
+
+			declare Integer CurrentCheckpoint for Player;
 
 			declare Boolean HasAmmo for Player;
 			declare Boolean AmmoUnlimited for Player;
@@ -733,19 +839,24 @@ Void RaceStart(Ident _PlayerId){
 			RaceStarted = True;
 			PlayerStartTime = Now;
 			StartLocalTime = Now;
+
+			CurrentCheckpoint = 0;
+
 			HasAmmo = True;
 			AmmoUnlimited = False;
 			StaminaUnlimited = False;
 			StaminaRegen = True;
+			
 			ShotsFired = 0;
 			MaxSpeed = 0.0;
 			LastStamina = 3600;
 			StaminaUsed = 0;
 
 			Runs += 1;
-
 			UpdatePlayerStuff(_PlayerId, False);
-			UpdatePlayerDataManialink(_PlayerId);
+			UpdateManialink(_PlayerId, True);
+
+			Player.Score.Points = CurrentCheckpoint;
 		}
 	}
 }
@@ -758,32 +869,123 @@ Void RaceFinish(Ident _PlayerId){
 			declare Integer Finishs for Player;
 			declare Boolean RaceStarted for Player;
 
-			declare Integer Theorical for Player;
+			declare Integer Theoretical for Player;
 			declare Integer Place for Player;
 			
 			Respawns = 0;
 			RaceStarted = False;
 			Finishs += 1;
-			Theorical = CalculateTheorical(_PlayerId);
+			Theoretical = CalculateTheoretical(_PlayerId);
 			Place = GetPlace(_PlayerId) + 1;
-			UpdatePlayerDataManialink(_PlayerId);
 
+			G_IsMapFinishedBySomeone = True;
 		}
 	}
 }
 
-Void UpdatePlayerRawData(Ident _PlayerId){
+// ---------------------------------- //
+// Get Spectators
+// ---------------------------------- //
+CSmPlayer[] GetSpectators(Ident _PlayerId){
+	declare CSmPlayer[] SpectatorsReturn;
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
+			declare Text[] PlayerSpectators for Player;
+
+			foreach(PlayerSpectator, PlayerSpectators){
+				if(AllPlayers.existskey(GetPlayerId(PlayerSpectator))) SpectatorsReturn.add(AllPlayers[GetPlayerId(PlayerSpectator)]);
+			}
+		}
+	}
+	return SpectatorsReturn;
+}
+
+
+// ---------------------------------- //
+// Update
+// ---------------------------------- //
+Void Update(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare UI <=> UIManager.GetUI(Player);
+			declare Text LastSpectator for Player;
+			declare Text LastSpectatorPlaying for Player;
+			declare CSmPlayer PlayerTarget for Player;
+
+
+
+			declare netread Text Net_PlayerSpectate for UI;
+			declare netread Text Net_PlayerSpectateForced for UI;
+
+			declare netwrite Boolean Net_TrueSpectate for UI;
+
+			declare Text[] PlayerSpectators for PlayerTarget;
+			
+			if(Net_TrueSpectate != Player.RequestsSpectate){
+				Net_TrueSpectate = Player.RequestsSpectate;
+			}
+
+			PlayerTarget <=> Player;
+
+			if(LastSpectatorPlaying != Net_PlayerSpectateForced){
+				if(AllPlayers.existskey(GetPlayerId(LastSpectatorPlaying))){
+					declare OldTarget <=> AllPlayers[GetPlayerId(LastSpectatorPlaying)];
+					declare Text[] PlayerSpectators for OldTarget;
+					if(PlayerSpectators.exists(Player.Login)){
+						PlayerSpectators.remove(Player.Login);
+					}
+				}
+
+				if(Net_PlayerSpectateForced == Player.Login || Net_PlayerSpectateForced == ""){
+					UI.ForceSpectator = False;
+					UI.SpectatorForcedTarget = NullId;
+					UI.SpectatorAutoTarget = NullId;
+				} else {
+					UI.ForceSpectator = True;
+					UI.SpectatorForcedTarget = GetPlayerId(Net_PlayerSpectateForced);
+					UI.SpectatorAutoTarget = GetPlayerId(Net_PlayerSpectateForced);
+					// Add this player as Spectator for the Speced Player
+					if(AllPlayers.existskey(GetPlayerId(Net_PlayerSpectateForced))){
+						PlayerTarget <=> AllPlayers[GetPlayerId(Net_PlayerSpectateForced)];
+						declare Text[] PlayerSpectators for PlayerTarget;
+						//If current player is not in the list of player target spectators
+						if(!PlayerSpectators.exists(Player.Login)){
+							PlayerSpectators.add(Player.Login);
+						}
+					}
+				}
+				LastSpectatorPlaying = Net_PlayerSpectateForced;
+				UpdateManialink(_PlayerId, True);
+			} else {
+				if(Net_TrueSpectate && LastSpectator != Net_PlayerSpectate){
+					if(AllPlayers.existskey(GetPlayerId(LastSpectator))){
+					declare OldTarget <=> AllPlayers[GetPlayerId(LastSpectator)];
+					declare Text[] PlayerSpectators for OldTarget;
+					if(PlayerSpectators.exists(Player.Login)){
+						PlayerSpectators.remove(Player.Login);
+					}
+				}
+					if(Net_PlayerSpectate != ""){
+
+						if(AllPlayers.existskey(GetPlayerId(Net_PlayerSpectate))){
+							PlayerTarget <=> AllPlayers[GetPlayerId(Net_PlayerSpectate)];
+							declare Text[] PlayerSpectators for PlayerTarget;
+							//If current player is not in the list of player target spectators
+							if(!PlayerSpectators.exists(Player.Login)){
+								PlayerSpectators.add(Player.Login);
+							}
+						}
+					}
+					LastSpectator = Net_PlayerSpectate;
+					UpdateManialink(_PlayerId, True);
+				}
+			}
+
 			declare Integer LastStamina for Player;
 			declare Integer StaminaUsed for Player;
-			declare Boolean TrueSpectate for Player;
 			declare Real MaxSpeed for Player;
-
-			declare Text LastSpectator for Player;
-			declare Text LastSpectatorManual for Player;
-			declare CSmPlayer PlayerTarget for Player;
 
 			if(LastStamina != Player.Stamina){
 				if(LastStamina > Player.Stamina){
@@ -795,221 +997,120 @@ Void UpdatePlayerRawData(Ident _PlayerId){
 			if(MaxSpeed < Player.Speed){
 				MaxSpeed = Player.Speed;
 			}
-
-			declare UI <=> UIManager.GetUI(Player);
-			declare netread Text Net_PlayerSpectate for UI;
-			declare netread Text Net_PlayerSpectateManual for UI;
-			
-			declare netwrite Boolean Net_TrueSpectate for UI;
-	
-			TrueSpectate = Player.RequestsSpectate;
-			Net_TrueSpectate = TrueSpectate;
-			
-			if(Net_PlayerSpectate != "" && Net_PlayerSpectate != Player.Login){
-				if(AllPlayers.existskey(GetPlayerId(Net_PlayerSpectate))){
-					UI.ForceSpectator = True;
-					UI.SpectatorForcedTarget = GetPlayerId(Net_PlayerSpectate);
-					UI.SpectatorAutoTarget = GetPlayerId(Net_PlayerSpectate);
-					PlayerTarget <=> AllPlayers[GetPlayerId(Net_PlayerSpectate)];
-				} else {
-					UI.ForceSpectator = False;
-					UI.SpectatorForcedTarget = NullId;
-					UI.SpectatorAutoTarget = NullId;
-					PlayerTarget <=> Player;
-				}
-			} else {
-				UI.ForceSpectator = False;
-				UI.SpectatorForcedTarget = NullId;
-				UI.SpectatorAutoTarget = NullId;
-				PlayerTarget <=> Player;
-				UpdateSpectatorCount(_PlayerId);
-			}
-
-			if(LastSpectator != Net_PlayerSpectate){
-				LastSpectator = Net_PlayerSpectate;
-				UpdatePlayerDataManialink(_PlayerId);
-				UpdateSpectatorCount(_PlayerId);
-			}
-			if(LastSpectatorManual != Net_PlayerSpectateManual){
-				LastSpectatorManual = Net_PlayerSpectateManual;
-				if(LastSpectatorManual != ""){
-					PlayerTarget <=> AllPlayers[GetPlayerId(Net_PlayerSpectateManual)];
-					UpdatePlayerDataManialink(_PlayerId);
-					UpdateSpectatorCount(_PlayerId);
-				}
-			}
 		}
 	}
 }
 
-Void Start(){
-	G_BestPlayerTime = -1;
-	G_BestCheckpointsTime = Integer[Integer];
-	G_BestIntCheckpointsTime = Integer[Integer];
-
-	foreach(Player, AllPlayers){
-		declare Boolean RaceStarted for Player;
-		declare Integer PlayerStartTime for Player;
-		declare Integer Runs for Player;
-		declare Integer Respawns for Player;
-		declare Integer Finishs for Player;
-		declare Integer CurrentCheckpoint for Player;
-		declare Text RespawnKey for Player;
-
-		declare Boolean HasAmmo for Player;
-		declare Boolean AmmoUnlimited for Player;
-
-		declare Boolean StaminaUnlimited for Player;
-		declare Boolean StaminaRegen for Player;
-
-		declare Integer BestTime for Player;
-		declare Integer BestTimeDiff for Player;
-		declare Integer BestTimeDiffAll for Player;
-		declare Integer LastTime for Player;
-
-		declare Integer LastStamina for Player;
-		declare Integer StaminaUsed for Player;
-
-		declare Real MaxSpeed for Player;
-
-		declare Integer[Integer] CheckpointsTime for Player;
-		declare Integer[Integer] CheckpointsTimeDiff for Player;
-		declare Integer[Integer] CheckpointsBestTime for Player;
-		declare Integer[Integer] CheckpointsBestTimeDiff for Player;
-
-		//For theorical stuff
-		declare Integer StartLocalTime for Player;
-		declare Integer[Integer] CheckpointsIntTime for Player;
-		declare Integer[Integer] CheckpointsBestIntTime for Player;
-
-		declare Boolean AlreadyCreated for Player;
-		declare Boolean TrueSpectator for Player;
-
-		Runs = 0;
-		Finishs = 0;
-		BestTime = -1;
-		//BestTime = MathLib::Rand(1000, 20000);
-		BestTimeDiff = 0;
-		BestTimeDiffAll = 0;
-
-		Respawns = 0;
-		TrueSpectator = False;
-
-		CheckpointsTime = Integer[Integer];
-		CheckpointsTimeDiff = Integer[Integer];
-		CheckpointsBestTime = Integer[Integer];
-		CheckpointsBestTimeDiff = Integer[Integer];
-
-		CheckpointsIntTime = Integer[Integer];
-		CheckpointsBestIntTime = Integer[Integer];
-		AlreadyCreated = True;
-
-		LastTime = -1;
-		CurrentCheckpoint = 0;
-		HasAmmo = True;
-		AmmoUnlimited = False;
-		StaminaUnlimited = False;
-		StaminaRegen = True;
-		LastStamina = 3600;
-		StaminaUsed = 0;
-		MaxSpeed = 0.0;
-		RaceStarted = False;
-		PlayerStartTime = 0;			
-		RespawnKey = "Delete";
-	}
-}
-
-Void Init(Ident _PlayerId, CSmMapLandmark[Integer] _Checkpoints){
+// ---------------------------------- //
+// Creation
+// ---------------------------------- //
+// Player first time
+Void PreparePlayerData(Ident _PlayerId){
 	if(_PlayerId != NullId){
 		if(AllPlayers.existskey(_PlayerId)){
 			declare Player = AllPlayers[_PlayerId];
-			declare CSmPlayer PlayerTarget for Player;
 
-			declare Boolean RaceStarted for Player;
-			declare Integer PlayerStartTime for Player;
-			declare Integer Runs for Player;
-			declare Integer Respawns for Player;
 			declare Integer Finishs for Player;
-			declare Integer CurrentCheckpoint for Player;
-			declare Text RespawnKey for Player;
-
-			declare Boolean HasAmmo for Player;
-			declare Boolean AmmoUnlimited for Player;
-
-			declare Boolean StaminaUnlimited for Player;
-			declare Boolean StaminaRegen for Player;
-
-			declare Integer BestTime for Player;
-			declare Integer BestTimeDiff for Player;
-			declare Integer BestTimeDiffAll for Player;
+			declare Integer Runs for Player;
 			declare Integer LastTime for Player;
-
-			declare Integer LastStamina for Player;
-			declare Integer StaminaUsed for Player;
-
-			declare Real MaxSpeed for Player;
+			declare Integer BestTime for Player;
 
 			declare Integer[Integer] CheckpointsTime for Player;
 			declare Integer[Integer] CheckpointsTimeDiff for Player;
 			declare Integer[Integer] CheckpointsBestTime for Player;
 			declare Integer[Integer] CheckpointsBestTimeDiff for Player;
 
-			//For theorical stuff
-			declare Integer StartLocalTime for Player;
 			declare Integer[Integer] CheckpointsIntTime for Player;
 			declare Integer[Integer] CheckpointsBestIntTime for Player;
 
-			declare Boolean AlreadyCreated for Player;
+			Finishs = 0;
+			Runs = 0;
+			BestTime = -1;
+			LastTime = -1;
+
+			CheckpointsTime = Integer[Integer];
+			CheckpointsTimeDiff = Integer[Integer];
+			CheckpointsBestTime = Integer[Integer];
+			CheckpointsBestTimeDiff = Integer[Integer];
+
+			CheckpointsIntTime = Integer[Integer];
+			CheckpointsBestIntTime = Integer[Integer];
+
 			
-			if(!AlreadyCreated){
-				Runs = 0;
-				Finishs = 0;
-				BestTime = -1;
-				BestTimeDiff = 0;
-				BestTimeDiffAll = 0;
-				
-				Respawns = 0;
+		}
+	}
+}
 
-				CheckpointsTime = Integer[Integer];
-				CheckpointsTimeDiff = Integer[Integer];
-				CheckpointsBestTime = Integer[Integer];
-				CheckpointsBestTimeDiff = Integer[Integer];
+// Create new manager for a player
+Void Create(Ident _PlayerId){
+	if(_PlayerId != NullId){
+		if(AllPlayers.existskey(_PlayerId)){
+			declare Player = AllPlayers[_PlayerId];
+			declare Ident LayerInterfaceId for Player;
+			declare Ident LayerSoundStaminaId for Player;
+			declare Ident LayerSoundAmmoId for Player;
 
-				CheckpointsIntTime = Integer[Integer];
-				CheckpointsBestIntTime = Integer[Integer];
-				AlreadyCreated = True;
+			//Interface creation
+ 			declare UI <=> UIManager.GetUI(Player);
+
+			if(UI.UILayers.existskey(LayerInterfaceId)){
+				declare Removed = UI.UILayers.removekey(LayerInterfaceId);
+			}
+			if(UI.UILayers.existskey(LayerSoundStaminaId)){
+				declare Removed = UI.UILayers.removekey(LayerSoundStaminaId);
+			}
+			if(UI.UILayers.existskey(LayerSoundAmmoId)){
+				declare Removed = UI.UILayers.removekey(LayerSoundAmmoId);
 			}
 
-			LastTime = -1;
-			CurrentCheckpoint = 0;
-			HasAmmo = True;
-			AmmoUnlimited = False;
-			StaminaUnlimited = False;
-			StaminaRegen = True;
-			LastStamina = 3600;
-			StaminaUsed = 0;
-			MaxSpeed = 0.0;
-			RaceStarted = False;
-			PlayerStartTime = 0;			
-			RespawnKey = "Delete";
+			declare CUILayer LayerInterface for Player;
+			declare CUILayer LayerSoundStamina for Player;
+			declare CUILayer LayerSoundAmmo for Player;
 
-			G_Checkpoints = _Checkpoints;
+			LayerInterface <=> UIManager.UILayerCreate();
+			LayerInterface.ManialinkPage = Manialinks::CreatePlayerInterface();
+			LayerInterfaceId = LayerInterface.Id;
+			UI.UILayers.add(UIManager.UILayers[LayerInterfaceId]);
+
+			LayerSoundStamina <=> UIManager.UILayerCreate();
+			LayerSoundStaminaId = LayerSoundStamina.Id;
+			UI.UILayers.add(UIManager.UILayers[LayerSoundStaminaId]);
+
+			LayerSoundAmmo <=> UIManager.UILayerCreate();
+			LayerSoundAmmoId = LayerSoundAmmo.Id;
+			UI.UILayers.add(UIManager.UILayers[LayerSoundAmmoId]);
+
+			UI.OverlayHideGauges = True;
+
+			//Color
+			Player.ForceColor = Player.User.Color;
+
+			//Stuff
+			declare Boolean AlreadyCreated for Player;
+			declare Boolean RaceStarted for Player;
+			declare CSmPlayer PlayerTarget for Player;
 
 			PlayerTarget <=> Player;
 
-			//For theorical stuff
-			StartLocalTime = 0;
+			declare Text[] PlayerSpectators for Player;
+			declare Text LastSpectator for Player;
+			declare Text LastSpectatorForced for Player;
 
-			declare UI <=> UIManager.GetUI(Player);
+			PlayerSpectators = Text[];
+			LastSpectator = "";
+			LastSpectatorForced = "";
 
-			if (!UI.UILayers.existskey(G_LayerInterfaceId)){
-				declare LayerInterface <=> UIManager.UILayerCreate();
-				LayerInterface.ManialinkPage = Manialinks::CreatePlayerInterface();
-				G_LayerInterfaceId = LayerInterface.Id;
-				UI.UILayers.add(UIManager.UILayers[G_LayerInterfaceId]);
+			LayerSoundAmmo.ManialinkPage = "";
+			LayerSoundStamina.ManialinkPage = "";
+
+			RaceStarted = False;
+
+			if(!AlreadyCreated){
+				PreparePlayerData(_PlayerId);
+				AlreadyCreated = True;
 			}
 
-			UpdatePlayerDataManialink(_PlayerId);
+			UpdateManialink(_PlayerId, True);
 		}
 	}
 }

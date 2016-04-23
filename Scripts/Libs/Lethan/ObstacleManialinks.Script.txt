@@ -137,10 +137,8 @@ Text CreateScoresTable(){
 		declare netread Text[] Net_PlayersTimeData for Teams[0];
 		declare netread Integer Net_PlayersCount for Teams[0];
 		
-		declare netwrite Boolean Net_TrueSpectate for UI;
-		declare netwrite Text Net_PlayerSpectate for UI;
+		declare netread Boolean Net_TrueSpectate for UI;
 		declare netwrite Text Net_PlayerSpectateForced for UI;
-
 
 		declare netwrite currentPage for UI = 0;
 		
@@ -148,6 +146,7 @@ Text CreateScoresTable(){
 
 		declare LastUpdate = 0;
 
+		
 		currentPage = 0;
 
 		while(True){
@@ -179,9 +178,9 @@ Text CreateScoresTable(){
 					} else {
 						LabelsTime[index].Value = "-";
 					}
-					LabelsCP[index].Value = data[2];
+					LabelsCP[index].Value = "CP " ^ data[2];
 
-					LabelsRespawns[index].Value = data[3];
+					LabelsRespawns[index].Value = "RS " ^ data[3];
 				} else {
 					PlayersFrame[index].Visible = False;
 				}
@@ -208,7 +207,8 @@ Text CreateScoresTable(){
 							if(Event.ControlId == LabelsSpec[index].ControlId){
 								if(Net_PlayersTimeData.existskey(currentPage * 16 + index)){
 									declare data = TextLib::Split("|", Net_PlayersTimeData[currentPage * 16 + index])[0];
-									Net_PlayerSpectate = data;									
+									
+									Net_PlayerSpectateForced = data;
 								}
 							}
 							index += 1;
@@ -227,14 +227,7 @@ Text CreateScoresTable(){
 			<quad posn="-87 40 -1" sizen="175 108" bgcolor="000F" style="EnergyBar" substyle="EnergyBar" opacity="0.8"/>
 			<quad posn="25 -53 0" sizen="68 26" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" opacity="0.8"/>
 			<quad posn="-92 58 1" sizen="100 33" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg" opacity="0.8"/>
-			<label posn="-73 30 0" sizen="15 5" text="Player" textsize="2"/>
-			<label posn="-25 32 0" sizen="5 3" text="CP" textsize="1"/>
-			<label posn="-28 29 0" sizen="13 3" text="Respawns" textsize="1" halign="center"/>
-						<label posn="-2.5 29 0" sizen="13 3" text="Time" textsize="1" halign="right"/>
-			<label posn="6 30 0" sizen="15 5" text="Player" textsize="2"/>
-						<label posn="56 32 0" sizen="5 3" text="CP" textsize="1"/>
-			<label posn="54 29 0" sizen="13 3" text="Respawns" textsize="1" halign="center"/>
-									<label posn="77 29 0" sizen="13 3" text="Time" textsize="1" halign="right"/>
+			
 			<label posn="-87 43 1" sizen="85 3" text="{{{MapName}}} by {{{Map.AuthorNickName}}} ({{{Map.AuthorLogin}}})" textsize="1" valign="center"/>
 			<label posn="-1 37 1" sizen="84 4" text="{{{ServerName}}}" textsize="1" valign="center2" halign="right"/>
 			
@@ -499,6 +492,20 @@ Text CreatePlayerInterface(){
 
 	main(){
 		
+		declare CheckpointLeaderboard = [
+			(Page.GetFirstChild("CheckpointLeaderboard") as CMlFrame)
+		];
+
+		declare CPRanks = [
+			(Page.GetFirstChild("cpRank1") as CMlLabel),
+			(Page.GetFirstChild("cpRank2") as CMlLabel),
+			(Page.GetFirstChild("cpRank3") as CMlLabel),
+			(Page.GetFirstChild("cpRank4") as CMlLabel),
+			(Page.GetFirstChild("cpRank5") as CMlLabel),
+			(Page.GetFirstChild("cpRankPlayer") as CMlLabel),
+			(Page.GetFirstChild("cpRankLabel") as CMlLabel)
+		];
+
 		declare InfiniteQuad = [
 			(Page.GetFirstChild("InfiniteTime") as CMlQuad)
 		];
@@ -539,6 +546,14 @@ Text CreatePlayerInterface(){
 
 		declare CPProgress = [
 			(Page.GetFirstChild("CPProgress") as CMlLabel)
+		];
+
+		declare AmmoInfo = [
+			(Page.GetFirstChild("AmmoInfo") as CMlLabel)
+		];
+
+		declare StaminaInfo = [
+			(Page.GetFirstChild("StaminaInfo") as CMlLabel)
 		];
 
 		declare GaugeAmmo = [
@@ -584,9 +599,12 @@ Text CreatePlayerInterface(){
 		];
 
 		declare LastUpdate = 0;
+		declare LastCheckpoint = 0;
+		declare LastCheckpointUpdate = 0;
 
 		declare netread Integer Net_PlayerStartTime for UI;
-		declare netread Boolean Net_Running for UI;
+		declare netread Integer Net_PlayerCPTime for UI;
+		declare netread Boolean Net_RaceStarted for UI;
 		declare netread Boolean Net_HasAmmo for UI;
 		declare netread Boolean Net_AmmoUnlimited for UI;
 		declare netread Boolean Net_AmmoRegen for UI;
@@ -602,21 +620,23 @@ Text CreatePlayerInterface(){
 		declare netread Integer Net_CheckpointProgress for UI;
 		declare netread Real Net_MaxSpeed for UI;
 		declare netread Integer Net_Place for UI;
-		declare netread Integer Net_Theorical for UI;
+		declare netread Integer Net_Theoretical for UI;
 
-		declare netread Integer Net_BestTheorical for Teams[0];
+		declare netread Integer Net_BestTheoretical for Teams[0];
 		declare netread Integer Net_CheckpointsCount for Teams[0];
 		declare netread Boolean Net_NextMap for Teams[0];
 
 		declare netread Boolean Net_TrueSpectate for UI;
 
 		declare netwrite Text Net_PlayerSpectate for UI;
-		declare netwrite Text Net_PlayerSpectateManual for UI;
+		declare netwrite Text Net_PlayerSpectateForced for UI;
 
 		declare netread Integer Net_TimeRemaining for Teams[0];
 		declare netread Boolean Net_FreeTime for Teams[0];
 		declare netread Integer ForceNextCount for Teams[0];
 		declare netread Integer Net_PlayersCount for Teams[0];
+
+		declare netread Integer[Text] Net_CheckLeaderBoard for Teams[0];
 
 		declare Boolean ShowHelpMenu for UI;
 		declare netwrite CustomKeyEdit for UI = False;
@@ -637,6 +657,12 @@ Text CreatePlayerInterface(){
 
 		declare Smooth = 5.0;
 
+		declare StaminaAnim = False;
+		declare StaminaAnimValue = 0.0;
+
+		declare AmmoAnim = False;
+		declare AmmoAnimValue = 0.0;
+
 		declare CSmPlayer LocalPlayer;
 
 		LastBestTime = Net_BestTime;
@@ -644,8 +670,77 @@ Text CreatePlayerInterface(){
 
 		ShowHelpMenu = False;
 
+		Net_PlayerSpectate = "";
+		Net_PlayerSpectateForced = "";
+
 		while(True){
 			yield;
+
+			if(GUIPlayer != Null){
+				//CP Ranking
+				if(Net_CheckpointProgress != LastCheckpoint && Net_RaceStarted){
+					if(Net_CheckpointProgress > 0 && Net_CheckpointProgress < Net_CheckpointsCount){
+						LastCheckpointUpdate = Now;	
+					}
+					LastCheckpoint = Net_CheckpointProgress;
+					declare Text[] CPRanking;
+
+					CPRanking.clear();
+
+					foreach(CheckpointTime, Net_CheckLeaderBoard){
+						declare key = Net_CheckLeaderBoard.keyof(CheckpointTime);
+
+						if(TextLib::Split("|", key)[1] == TextLib::ToText(LastCheckpoint)){
+							CPRanking.add(TextLib::TimeToText(CheckpointTime, True) ^ "|" ^ TextLib::Split("|", key)[0]);
+						}
+					}
+
+					CPRanking = CPRanking.sort();
+
+					declare indexAll = 0;
+					declare indexPlayer = 0;
+
+					if(CPRanking.count > 0){
+						while(indexAll < CPRanking.count){
+							if(LocalPlayer != Null){
+								if(LocalPlayer.Login == TextLib::Split("|", CPRanking[0])[1]){
+									indexPlayer = indexAll;
+									declare time = Net_PlayerCPTime;
+									CPRanks[5].Value = GUIPlayer.Name ^ "$z - " ^ TextLib::TimeToText(time, True);							
+								}
+							}
+							indexAll += 1;
+						}
+					}
+					
+					declare index = 0;
+
+					while(index < 5){
+						if(CPRanking.existskey(index)){
+							CPRanks[index].Visible = True;
+							foreach(Player, Players){
+								if(Player.Login == TextLib::Split("|", CPRanking[index])[1]){
+									CPRanks[index].Value = Player.Name ^ "$z - " ^ TextLib::Split("|", CPRanking[index])[0];
+									continue;
+								}
+							}
+						} else {
+							CPRanks[index].Visible = False;
+						}
+						index += 1;
+					}
+
+					CPRanks[6].Value = "Checkpoint " ^ Net_CheckpointProgress ^ " Ranking (Top 5)";
+				}
+			}
+
+			if(LastCheckpointUpdate + 5000 < Now){
+				CheckpointLeaderboard[0].RelativePosition = Lerp(CheckpointLeaderboard[0].RelativePosition, <-50.0, 0.0, 0.0>, Smooth);	
+			} else {
+				CheckpointLeaderboard[0].RelativePosition = Lerp(CheckpointLeaderboard[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth);
+			}
+
+			//Vote next map
 			LabelNextMap[0].Value = "Press F3 for next map (" ^ ForceNextCount ^ "/" ^ Net_PlayersCount ^ ")";
 			if(!Net_FreeTime || ForceNextCount == Net_PlayersCount){
 				if(Net_TimeRemaining > 3600000){
@@ -671,7 +766,8 @@ Text CreatePlayerInterface(){
 				InfiniteQuad[0].Visible = True;
 				TimeRemainingLabel[0].Value = "";
 			}
-			//TimeRemainingLabel[0].Value = TextLib::TimeToText(600000, False);
+			
+			//Sliders
 			if(Net_NextMap){
 				Sliders[0].RelativePosition = Lerp(Sliders[0].RelativePosition, <0.0, 0.0, -5.0>, Smooth*10);
 				Sliders[1].RelativePosition = Lerp(Sliders[1].RelativePosition, <0.0, 0.0, -5.0>, Smooth*10);
@@ -681,21 +777,23 @@ Text CreatePlayerInterface(){
 				Sliders[1].RelativePosition = Lerp(Sliders[1].RelativePosition, <200.0, 0.0, -5.0>, Smooth*10);
 				Frames[0].RelativePosition = Lerp(Frames[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
 			}
+
+
 			if (LastUpdate + 25 < Now) {
 				LastUpdate = Now;
-				
 				if(InputPlayer != Null){
 					LocalPlayer <=> InputPlayer;
+					Net_PlayerSpectate = "";
 					if(GUIPlayer != Null){
 						if(GUIPlayer != LocalPlayer){
 							LocalPlayer <=> GUIPlayer;
+							Net_PlayerSpectate = GUIPlayer.Login;
 						}
-						Net_PlayerSpectateManual = GUIPlayer.Login;
 					}
 
 					if(IsSpectatorMode){
 						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <0.0, -15.0, 0.0>, Smooth);
-						if(Net_TrueSpectate && Net_PlayerSpectate != ""){
+						if(Net_TrueSpectate && Net_PlayerSpectateForced != ""){
 							SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <0.0, -20.0, 0.0>, Smooth);
 						} else {
 							SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <30.0, -20.0, 0.0>, Smooth);
@@ -704,18 +802,31 @@ Text CreatePlayerInterface(){
 						SpectatorMode[0].RelativePosition = Lerp(SpectatorMode[0].RelativePosition, <40.0, -15.0, 0.0>, Smooth);
 						SpectatorMode[1].RelativePosition = Lerp(SpectatorMode[1].RelativePosition, <30.0, -20.0, 0.0>, Smooth);
 					}
-					if(Net_Running){
+					if(Net_RaceStarted){
 						YPosRunningObj = YPosRunningOut;
 						YPosEndedObj = YPosEndedIn;
 						if(Net_HasAmmo){
 							GaugeAmmo[0].Visible = True;
 							if(Net_AmmoUnlimited){
 								GaugeAmmo[0].Ratio = 1.0;
-								GaugeAmmo[0].GradingRatio = 1.0;
-								GaugeAmmo[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
-								GaugeAmmo[0].Size = <69.0, 7.0>;
+								GaugeAmmo[0].GradingRatio = 0.25;
+								GaugeAmmo[0].Color = <LocalPlayer.User.Color.X * AmmoAnimValue, LocalPlayer.User.Color.Y * AmmoAnimValue, LocalPlayer.User.Color.Z * AmmoAnimValue>;
+								if(AmmoAnim){
+									if(AmmoAnimValue < 1.0){
+										AmmoAnimValue += 0.2;
+									} else {
+										AmmoAnim = False;
+									}
+								}
+								if(!AmmoAnim){
+									if(AmmoAnimValue > 0.2){
+										AmmoAnimValue -= 0.2;
+									} else {
+										AmmoAnim = True;
+									}
+								}
+								AmmoInfo[0].Visible = True;
 							} else {
-								GaugeAmmo[0].Size = <69.0, 10.0>;
 								GaugeAmmo[0].Color = <1.0, 1.0, 1.0>;
 								if(LocalPlayer.CurAmmoMax != 0){
 									GaugeAmmo[0].Ratio = (LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0);
@@ -727,6 +838,7 @@ Text CreatePlayerInterface(){
 									}
 									GaugeAmmo[0].Color = <LocalPlayer.User.Color.X * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0)), LocalPlayer.User.Color.Y * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0)), LocalPlayer.User.Color.Z * ((LocalPlayer.CurAmmo * 1.0) / (LocalPlayer.CurAmmoMax * 1.0))>;
 								}
+								AmmoInfo[0].Visible = False;
 							}						
 						} else {
 							GaugeAmmo[0].Visible = False;
@@ -736,17 +848,31 @@ Text CreatePlayerInterface(){
 						
 						GaugeStamina[0].Ratio = LocalPlayer.Stamina / 3600.0;
 						if(Net_StaminaUnlimited){
-							GaugeStamina[0].Color = <MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0), MathLib::Rand(0.0, 1.0)>;
+							GaugeStamina[0].Color = <LocalPlayer.User.Color.X * StaminaAnimValue, LocalPlayer.User.Color.Y * StaminaAnimValue, LocalPlayer.User.Color.Z * StaminaAnimValue>;
 							GaugeStamina[0].Ratio = 1.0;
-							GaugeStamina[0].Size = <69.0, 7.0>;
+							if(StaminaAnim){
+								if(StaminaAnimValue < 1.0){
+									StaminaAnimValue += 0.2;
+								} else {
+									StaminaAnim = False;
+								}
+							}
+							if(!StaminaAnim){
+								if(StaminaAnimValue > 0.2){
+									StaminaAnimValue -= 0.2;
+								} else {
+									StaminaAnim = True;
+								}
+							}
+							StaminaInfo[0].Visible = True;
 						} else {
-							GaugeStamina[0].Size = <69.0, 10.0>;
 							GaugeStamina[0].Color = <LocalPlayer.User.Color.X *(LocalPlayer.Stamina / 3600.0), LocalPlayer.User.Color.Y * (LocalPlayer.Stamina / 3600.0), LocalPlayer.User.Color.Z * (LocalPlayer.Stamina / 3600.0)>;									
 							if(Net_StaminaRegen){
 								Regen[1].RelativePosition = Lerp(Regen[1].RelativePosition, <0.0, -10.0 , -5.0>, Smooth);
 							} else {
 								Regen[1].RelativePosition = Lerp(Regen[1].RelativePosition, <0.0, 0.0 , -5.0>, Smooth);
 							}
+							StaminaInfo[0].Visible = False;
 						}
 						PlayerTimer[0].Value = TextLib::TimeToText(ArenaNow - Net_PlayerStartTime, True);
 					} else {
@@ -782,9 +908,9 @@ Text CreatePlayerInterface(){
 						Frames[1].RelativePosition = Lerp(Frames[1].RelativePosition, <0.0, 0.0, 0.0>, Smooth*2);
 					}
 
-					Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theorical, True);
+					Theoricals[0].Value = "Theo. : " ^ TextLib::TimeToText(Net_Theoretical, True);
 					Theoricals[0].TextColor = LocalPlayer.User.Color;
-					Theoricals[1].Value = "All Theo. : " ^ TextLib::TimeToText(Net_BestTheorical, True);
+					Theoricals[1].Value = "All Theo. : " ^ TextLib::TimeToText(Net_BestTheoretical, True);
 					Theoricals[1].TextColor = LocalPlayer.User.Color;
 
 					CPProgress[0].TextColor = LocalPlayer.User.Color;
@@ -804,9 +930,9 @@ Text CreatePlayerInterface(){
 
 					PlayerRunsAndRespawns[0].TextColor = LocalPlayer.User.Color;
 					if(!Net_RespawnAtStart){
-						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
+						PlayerRunsAndRespawns[0].Value = "Finishs : " ^ TextLib::ToText(Net_Finishs) ^ " RS : " ^ TextLib::ToText(Net_Respawns);
 					} else {
-						PlayerRunsAndRespawns[0].Value = "Runs : " ^ TextLib::ToText(Net_Runs) ^ " $s$f00No Respawns";
+						PlayerRunsAndRespawns[0].Value = "Finishs : " ^ TextLib::ToText(Net_Finishs) ^ " $s$f00No Respawns";
 					}
 					if(CustomKeyEdit){
 						RestartButtonEdit[0].Value = "Press new key";
@@ -815,10 +941,10 @@ Text CreatePlayerInterface(){
 					}
 					if(ShowHelpMenu){
 						HelpIcon[0].RelativePosition = Lerp(HelpIcon[0].RelativePosition, <-180.0, 83.0, 0.0>, Smooth);
-						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <0.0, 0.0, 0.0>, Smooth);
+						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <0.0, 15.0, 0.0>, Smooth);
 					} else {
 						HelpIcon[0].RelativePosition = Lerp(HelpIcon[0].RelativePosition, <-158.0, 83.0, 0.0>, Smooth);
-						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <-100.0, 0.0, 0.0>, Smooth);
+						FrameHelp[0].RelativePosition = Lerp(FrameHelp[0].RelativePosition, <-100.0, 15.0, 0.0>, Smooth);
 					}
 				} else {
 					GaugeAmmo[0].Visible = False;
@@ -831,14 +957,12 @@ Text CreatePlayerInterface(){
 				switch(Event.Type){
 					case CMlEvent::Type::MouseClick:{
 						if(Event.ControlId == "QuitSpectatorMode"){
-							Net_PlayerSpectate = "";
-							if(Net_TrueSpectate){
-								IsSpectatorMode = False;
-							}
+							if(Net_TrueSpectate) IsSpectatorMode = False;
+							Net_PlayerSpectateForced = "";
 						}
 						if(Event.ControlId == "QuitSpectatorForcedMode"){
 							if(Net_TrueSpectate){
-								Net_PlayerSpectate = "";
+								Net_PlayerSpectateForced = "";
 							}
 						}
 						if(Event.ControlId == "ShowHelp"){
@@ -863,17 +987,28 @@ Text CreatePlayerInterface(){
 	}
 	--></script>
 	<frame id="PlayerInterface" posn="0 0 0">
-	<quad id="SliderLeft" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="right" hidden="0"/>
-	<quad id="SliderRight" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="left" hidden="0"/>
-	<quad id="ShowHelp" posn="-158 83 0" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Help" scriptevents="1"/>
-		<frame id="Menu" posn="-100 0 0">
-		<quad posn="-164 70 0" sizen="94 61" bgcolor="FFFA" style="Bgs1" substyle="BgHealthBar"/>
-		<label posn="-72 68 0" sizen="55 5" text="Help / Options" halign="right"/>
-		<label id="CloseHelp" posn="-161 22 1" sizen="13 5" text="Close" style="CardMain_Quit" scriptevents="1"/>
-		<label posn="-157 58 0" sizen="81 4" text="Press F4 to (de)activate respawn at last CP." textsize="2"/>
-		<label posn="-157 54 0" sizen="81 4" text="Press F3 to vote fornext map." textsize="2"/>
-		<label posn="-157 30 0" sizen="49 5" text="Bind key for restart" textsize="2"/>
-		<label id="RestartButtonEdit" posn="-108 32 1" sizen="20 5" text="Restart : DELETE" style="CardButtonMedium" scriptevents="1"/>
+		<quad id="SliderLeft" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="right" hidden="0"/>
+		<quad id="SliderRight" posn="0 0 -2" sizen="1000 1000" bgcolor="000F" rot="20" valign="center" halign="left" hidden="0"/>
+		<quad id="ShowHelp" posn="-158 83 0" sizen="6 6" bgcolor="FFFA" style="UIConstruction_Buttons" substyle="Help" scriptevents="1"/>
+		<frame id="Menu" posn="-100 15 0">
+			<quad posn="-164 70 0" sizen="94 41" bgcolor="FFFA" style="Bgs1" substyle="BgCardList"/>
+			<label posn="-72 68 0" sizen="55 5" text="Help / Options" halign="right"/>
+			<label id="CloseHelp" posn="-162 42 1" sizen="13 5" text="Close" style="CardMain_Quit" scriptevents="1"/>
+			<label posn="-157 58 0" sizen="81 4" text="Press F3 to vote for next map." textsize="2"/>
+			<label posn="-157 54 0" sizen="81 4" text="Press F4 to (de)activate respawn at last CP." textsize="2"/>
+			<label posn="-157 48 0" sizen="49 5" text="Bind key for restart" textsize="2"/>
+			<label id="RestartButtonEdit" posn="-101 49 1" sizen="20 5" text="Restart : DELETE" style="CardButtonSmallS" scriptevents="1"/>
+		</frame>
+		<frame id="CheckpointLeaderboard" posn="-50 0 0">
+			<quad posn="-166 46 0" sizen="48 10" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
+			<quad posn="-162 39 -1" sizen="43 30" bgcolor="FFFA" style="Bgs1" substyle="BgCardList"/>
+			<label id="cpRankLabel" posn="-123 41 0" sizen="36 5" text="CP Ranking" textsize="1.5" valign="center" halign="right"/>
+			<label id="cpRank1" posn="-159 37 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
+			<label id="cpRank2" posn="-159 33 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
+			<label id="cpRank3" posn="-159 29 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
+			<label id="cpRank4" posn="-159 25 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
+			<label id="cpRank5" posn="-159 21 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
+			<label id="cpRankPlayer" posn="-159 14 0" sizen="37 4" text="Player - 00:00.00" textsize="2"/>
 		</frame>
 		<frame id="GlobalTimer" posn="-20 0 0">
 			<quad posn="-166 99 0" sizen="23 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
@@ -881,7 +1016,7 @@ Text CreatePlayerInterface(){
 			<quad id="InfiniteTime" posn="-157 89 1" sizen="8 4" bgcolor="FFFA" image="https://dl.dropboxusercontent.com/u/42719494/Maniaplanet/infinite.png"/>
 		</frame>
 		<frame id="NextMapCall">
-			<quad posn="-126 94 0" sizen="53 8" bgcolor="FFFA" style="Bgs1" substyle="BgHealthBar"/>
+			<quad posn="-126 94 0" sizen="53 8" bgcolor="FFFA" style="Bgs1" substyle="BgCardList"/>
 			<label id="NextMap" posn="-100 88.5 0" sizen="42 3" text="F3 for next map (0/0)" textsize="1" halign="center" valign="center"/>
 		</frame>
 		<frame id="SpectatorMode" posn="40 -15 0">
@@ -895,13 +1030,13 @@ Text CreatePlayerInterface(){
 			<label posn="157 -52 1" sizen="11 5" text="$f00Forced" textsize="1" valign="center2" halign="right"/>
 		</frame>
 		<frame id="SpectatorInput" hidden="1">
-		<quad posn="-30 -68 -2" sizen="60 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
-		<quad id="Left" posn="-27 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Left"/>
-		<quad id="Right" posn="-15 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Right"/>
-		<quad id="Down" posn="-21 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Down"/>
-		<quad id="Up" posn="-21 -71 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Up"/>
-		<label id="Shoot" posn="10 -72 0" sizen="20 5" text="$sShoot" halign="center"/>
-		<label id="Jump" posn="10 -78 0" sizen="20 5" text="$sJump" halign="center"/>
+			<quad posn="-30 -68 -2" sizen="60 20" bgcolor="FFFA" style="Bgs1" substyle="BgCardList"/>
+			<quad id="Left" posn="-27 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Left"/>
+			<quad id="Right" posn="-15 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Right"/>
+			<quad id="Down" posn="-21 -77 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Down"/>
+			<quad id="Up" posn="-21 -71 0" sizen="6 6" bgcolor="FFFA" style="Copilot" substyle="Up"/>
+			<label id="Shoot" posn="10 -72 0" sizen="20 5" text="$sShoot" halign="center"/>
+			<label id="Jump" posn="10 -78 0" sizen="20 5" text="$sJump" halign="center"/>
 		</frame>
 		<frame id="RaceTerminated" posn="0 -16 0">
 			<quad posn="-51 -73 0" sizen="102 20" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="PlayerSlot"/>
@@ -920,6 +1055,8 @@ Text CreatePlayerInterface(){
 			<label id="PlayerRunsAndRespawns" posn="85 -86 0" sizen="31 3" text="Runs : 0 - RS : 0" textsize="1"/>
 		</frame>
 		<frame id="Running" posn="0 -2 0">
+			<label id="AmmoInfo" posn="-50 -80 0" sizen="54 5" text="Unlimited Ammo !" textsize="2" valign="center2" halign="center"/>
+			<label id="StaminaInfo" posn="50 -80 0" sizen="54 5" text="Unlimited Stamina !" textsize="2" valign="center2" halign="center"/>
 			<frame id="NoRegenAmmo" posn="0 0 0">
 				<quad posn="-81 -76 0" sizen="28 8" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange1Bg"/>
 				<label posn="-79 -79 0" sizen="25 3" text="$f00No regeneration !" textsize="1"/>
@@ -933,7 +1070,7 @@ Text CreatePlayerInterface(){
 			<quad posn="86 -74 -3" sizen="11 12" bgcolor="FFFA" style="UiSMSpectatorScoreBig" substyle="UIRange2Bg" hidden="0"/>
 			<label id="CPProgress" posn="95 -80 -2" sizen="13 5" text="?/?" textsize="1" valign="center" halign="right" hidden="0"/>
 			<gauge id="PlayerAmmo" posn="-14 -85 0" sizen="69 10" valign="center" halign="right" ratio="1" grading="0.25" drawbg="0"/>
-			<gauge id="PlayerStamina" posn="14 -85 -1" sizen="69 10" valign="center" halign="left" ratio="1" color="ff66ffFF" drawbg="0"/>
+			<gauge id="PlayerStamina" posn="14 -85 -1" sizen="69 10" valign="center" halign="left" ratio="1" drawbg="0"/>
 			<quad posn="0 -84.5 1" sizen="30 8" bgcolor="FFFA" halign="center" valign="center" style="EnergyBar" substyle="BgText"/>
 			<label id="PlayerTimer" posn="0 -84 2" sizen="23 9" text="--:--,--" style="TextRaceChrono" halign="center" valign="center" textsize="4"/>
 		</frame>
@@ -952,6 +1089,11 @@ Text CreateUIEventManager(){
 		declare CustomKey for UI = "Delete";
 
 		declare netwrite Boolean ForceNext for UI;
+
+		declare netwrite Boolean Input_Up for UI;
+		declare netwrite Boolean Input_Down for UI;
+		declare netwrite Boolean Input_Left for UI;
+		declare netwrite Boolean Input_Right for UI;
 
 		ForceNext = False;
 
@@ -972,6 +1114,30 @@ Text CreateUIEventManager(){
 						}
 					}
 				}
+			}
+
+			if(IsKeyPressed(143) || IsKeyPressed(131) || IsKeyPressed(127)){
+				Input_Up = True;
+			} else {
+				Input_Up = False;
+			}
+
+			if(IsKeyPressed(113) || IsKeyPressed(31)){
+				Input_Down = True;
+			} else {
+				Input_Down = False;
+			}
+
+			if(IsKeyPressed(104) || IsKeyPressed(110) || IsKeyPressed(65)){
+				Input_Left = True;
+			} else {
+				Input_Left = False;
+			}
+
+			if(IsKeyPressed(27) || IsKeyPressed(109)){
+				Input_Right = True;
+			} else {
+				Input_Right = False;
 			}
 		}
 		--></script>
