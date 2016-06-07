@@ -1,5 +1,9 @@
 # Obstacle Reborn
 
+Requirements for testing :
+- Run : Modes/ShootMania/ObstacleReborn.Script.txt, Libs/Lethan/*
+- Map Editor : MapTypes/ShootMania/ObstacleRebornArena.Script.txt, Libs/Kana/*
+
 TODO List
 
 Mode :
